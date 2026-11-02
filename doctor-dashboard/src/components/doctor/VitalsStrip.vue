@@ -1,6 +1,6 @@
 <template>
-  <div class="bg-surface-card border border-line-subtle rounded-2xl p-3.5 shadow-xs">
-    <div class="flex items-center justify-between mb-2.5">
+  <div class="bg-surface-card border border-line-subtle rounded-2xl p-2.5 lg:p-3 shadow-xs shrink-0">
+    <div class="flex items-center justify-between mb-1.5 px-0.5">
       <span class="text-xs font-bold text-content-primary flex items-center gap-1.5">
         <span>🩺</span>
         <span>القياسات الحيوية (مقارنة بالزيارة السابقة)</span>
@@ -8,22 +8,22 @@
       <span class="text-[10px] text-content-muted">مسجلة بواسطة الاستقبال</span>
     </div>
 
-    <div v-if="enabledVitals.length === 0" class="text-xs text-content-muted py-2 text-center">
+    <div v-if="enabledVitals.length === 0" class="text-xs text-content-muted py-1 text-center">
       لم يتم تفعيل قياسات حيوية
     </div>
 
-    <div v-else class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+    <div v-else class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
       <div
         v-for="item in enabledVitals"
         :key="item.key"
-        class="bg-surface-elevated border border-line-subtle p-2.5 rounded-xl flex flex-col justify-between"
+        class="bg-surface-elevated border border-line-subtle py-1 px-2 rounded-xl flex flex-col justify-between"
       >
-        <span class="text-[10px] font-medium text-content-secondary truncate">{{ item.label }}</span>
-        <div class="mt-1 flex items-baseline gap-1.5">
-          <span class="text-sm lg:text-base font-extrabold text-content-primary font-mono tabular-nums">
+        <span class="text-[9px] font-semibold text-content-secondary truncate">{{ item.label }}</span>
+        <div class="mt-0.5 flex items-baseline gap-1">
+          <span class="text-xs lg:text-sm font-black text-content-primary font-mono tabular-nums">
             {{ getVitalDisplay(currentData, item.key, item.unit) }}
           </span>
-          <span v-if="hasPrevious(item.key)" class="text-[10px] text-content-muted line-through font-mono">
+          <span v-if="hasPrevious(item.key)" class="text-[9px] text-content-muted line-through font-mono">
             ({{ getVitalDisplay(prevData, item.key, item.unit) }})
           </span>
         </div>

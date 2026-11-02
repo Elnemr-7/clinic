@@ -10,21 +10,21 @@
           <div class="w-10 h-10 rounded-xl bg-brand-subtle text-brand border border-brand-border flex items-center justify-center shrink-0 shadow-xs">
             <Stethoscope class="w-5 h-5" />
           </div>
-          <div class="hidden sm:block">
-            <h1 class="text-xs lg:text-sm font-extrabold text-content-primary leading-tight flex items-center gap-1.5">
+          <div class="hidden sm:block min-w-0">
+            <h1 class="text-xs lg:text-sm font-extrabold text-content-primary leading-tight flex items-center gap-1.5 truncate">
               <span>{{ activeClinicName || 'عيادتي' }}</span>
-              <span v-if="authStore.user?.role === 'doctor'" class="text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand font-bold">طبيب</span>
-              <span v-else class="text-[10px] px-1.5 py-0.5 rounded bg-status-info/10 text-status-info font-bold">استقبال</span>
+              <span v-if="authStore.user?.role === 'doctor'" class="text-[10px] px-1.5 py-0.5 rounded bg-brand/10 text-brand font-bold shrink-0">طبيب</span>
+              <span v-else class="text-[10px] px-1.5 py-0.5 rounded bg-status-info/10 text-status-info font-bold shrink-0">استقبال</span>
             </h1>
-            <p class="text-[11px] text-content-muted font-medium truncate max-w-[150px]">
-              {{ authStore.user?.name || 'د. استشاري' }}
+            <p v-if="doctorSubtitle" class="text-[11px] text-content-muted font-medium truncate max-w-[180px]">
+              {{ doctorSubtitle }}
             </p>
           </div>
         </div>
 
         <!-- Global Branch & Shift Switcher -->
         <div v-if="branches.length > 0" class="flex items-center gap-1.5 bg-surface-elevated px-2.5 py-1.5 rounded-xl border border-line-subtle text-xs">
-          <Building2 class="w-3.5 h-3.5 text-content-muted" />
+          <Building2 class="w-3.5 h-3.5 text-content-muted shrink-0" />
           <select
             v-if="canSwitchBranch"
             :value="selectedClinicId"
@@ -35,8 +35,8 @@
               {{ b.name }}
             </option>
           </select>
-          <span v-else class="font-bold text-content-primary text-xs">
-            {{ activeClinicName }}
+          <span v-else class="font-bold text-content-primary text-xs truncate max-w-[120px]">
+            {{ activeBranchDisplayName }}
           </span>
           <span v-if="activeShiftLabel" class="hidden md:inline text-[10px] px-1.5 py-0.5 rounded bg-surface-card border border-line-subtle text-content-secondary font-mono">
             {{ activeShiftLabel }}
@@ -151,7 +151,10 @@
     </header>
 
     <!-- DYNAMIC PAGE CANVAS (<RouterView /> inside h-[calc(100vh-4rem)]) -->
-    <main class="h-[calc(100vh-4rem)] bg-surface-app overflow-auto">
+    <main
+      class="h-[calc(100vh-4rem)] bg-surface-app"
+      :class="isWorkspace ? 'overflow-hidden' : 'overflow-y-auto'"
+    >
       <router-view />
     </main>
 
@@ -224,9 +227,28 @@ const selectedClinicId = computed({
   },
 });
 
+const isWorkspace = computed(() => {
+  return route.path.includes('/workspace');
+});
+
 const activeClinicName = computed(() => {
   const match = branches.value.find(b => b.id === selectedClinicId.value);
   return match?.name || authStore.clinic?.name || authStore.tenant?.name || 'عيادتي';
+});
+
+const activeBranchDisplayName = computed(() => {
+  const match = branches.value.find(b => b.id === selectedClinicId.value);
+  return match?.name || 'الفرع الرئيسي';
+});
+
+const doctorSubtitle = computed(() => {
+  const user = authStore.user;
+  const clinic = activeClinicName.value;
+  if (!user?.name) return null;
+  if (clinic && clinic.includes(user.name)) {
+    return user.role === 'doctor' ? 'العيادة التخصصية' : 'مكتب الاستقبال';
+  }
+  return user.name;
 });
 
 const activeShiftLabel = computed(() => {

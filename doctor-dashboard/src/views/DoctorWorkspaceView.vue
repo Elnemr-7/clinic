@@ -1,11 +1,11 @@
 <template>
-  <div class="h-full p-4 lg:p-5 overflow-hidden text-right select-none font-sans" dir="rtl">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full overflow-hidden">
+  <div class="h-full p-2.5 lg:p-3.5 overflow-hidden text-right select-none font-sans" dir="rtl">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full min-h-0 overflow-hidden">
       
       <!-- ======================================================== -->
       <!-- RIGHT SIDEBAR (3 Cols): Live Queue & Next Patient Rail  -->
       <!-- ======================================================== -->
-      <aside class="col-span-12 lg:col-span-3 h-full flex flex-col bg-surface-card border border-line-subtle rounded-2xl shadow-xs overflow-hidden">
+      <aside class="col-span-12 lg:col-span-3 h-full min-h-0 flex flex-col bg-surface-card border border-line-subtle rounded-2xl shadow-xs overflow-hidden">
         
         <!-- Rail Header: Current Patient in Room -->
         <div class="p-3.5 border-b border-line-subtle bg-surface-elevated/60">
@@ -131,7 +131,7 @@
       <!-- ======================================================== -->
       <!-- MAIN CONSULTATION COCKPIT (9 Cols): Zero-Scroll Cockpit   -->
       <!-- ======================================================== -->
-      <main class="col-span-12 lg:col-span-9 h-full flex flex-col gap-3 overflow-y-auto pr-0.5">
+      <main class="col-span-12 lg:col-span-9 h-full min-h-0 flex flex-col gap-2 overflow-y-auto lg:overflow-hidden pr-0.5">
         
         <template v-if="workspaceStore.currentPatient">
           <!-- 1. Critical Medical Alert Bar -->
@@ -149,27 +149,27 @@
           />
 
           <!-- 3. THE 4 CLINICAL ACTION CARDS (2x2 Bento Grid - Equal Height) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 flex-1 items-stretch">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 flex-1 min-h-0 items-stretch">
             
             <!-- CARD 1: Medical History (Alt+1) -->
-            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all">
+            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-3 shadow-xs flex flex-col justify-between transition-all">
               <div>
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <div class="p-2 rounded-xl bg-status-info-bg text-status-info border border-status-info-border">
-                      <FileText class="w-5 h-5" />
+                    <div class="p-1.5 rounded-xl bg-status-info-bg text-status-info border border-status-info-border">
+                      <FileText class="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 class="text-sm font-black text-content-primary">1. التاريخ الطبي والأرشيف</h3>
-                      <p class="text-[11px] text-content-muted">الزيارات السابقة والملفات</p>
+                      <h3 class="text-xs lg:text-sm font-black text-content-primary">1. التاريخ الطبي والأرشيف</h3>
+                      <p class="text-[10px] text-content-muted">الزيارات السابقة والملفات</p>
                     </div>
                   </div>
-                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
                     Alt+1
                   </span>
                 </div>
 
-                <div class="mt-3 p-3 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
+                <div class="mt-2 p-2 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
                   <div class="flex justify-between text-content-secondary">
                     <span>عدد الزيارات السابقة:</span>
                     <span class="font-bold font-mono text-content-primary">{{ pastVisitsCount }} زيارات</span>
@@ -181,11 +181,11 @@
                 </div>
               </div>
 
-              <div class="mt-4 pt-3 border-t border-line-subtle">
+              <div class="mt-2 pt-2 border-t border-line-subtle">
                 <button
                   type="button"
                   @click="showHistoryModal = true"
-                  class="w-full py-2 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-brand border border-brand-border font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full py-1.5 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-brand border border-brand-border font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <FolderOpen class="w-3.5 h-3.5" />
                   <span>فتح السجل الطبي الكامل</span>
@@ -194,24 +194,24 @@
             </div>
 
             <!-- CARD 2: Diagnosis & Prescription (Alt+2) -->
-            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all">
+            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-3 shadow-xs flex flex-col justify-between transition-all">
               <div>
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <div class="p-2 rounded-xl bg-status-success-bg text-status-success border border-status-success-border">
-                      <Pill class="w-5 h-5" />
+                    <div class="p-1.5 rounded-xl bg-status-success-bg text-status-success border border-status-success-border">
+                      <Pill class="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 class="text-sm font-black text-content-primary">2. التشخيص والروشتة</h3>
-                      <p class="text-[11px] text-content-muted">الأدوية والجرعات والطباعة</p>
+                      <h3 class="text-xs lg:text-sm font-black text-content-primary">2. التشخيص والروشتة</h3>
+                      <p class="text-[10px] text-content-muted">الأدوية والجرعات والطباعة</p>
                     </div>
                   </div>
-                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
                     Alt+2
                   </span>
                 </div>
 
-                <div class="mt-3 p-3 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
+                <div class="mt-2 p-2 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
                   <div class="flex justify-between text-content-secondary">
                     <span>التشخيص اليوم:</span>
                     <span class="font-bold text-brand truncate max-w-[180px]">
@@ -227,11 +227,11 @@
                 </div>
               </div>
 
-              <div class="mt-4 pt-3 border-t border-line-subtle flex items-center gap-2">
+              <div class="mt-2 pt-2 border-t border-line-subtle flex items-center gap-2">
                 <button
                   type="button"
                   @click="showPrescriptionModal = true"
-                  class="flex-1 py-2 px-3 rounded-xl bg-brand hover:bg-brand-hover text-content-inverse font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                  class="flex-1 py-1.5 px-3 rounded-xl bg-brand hover:bg-brand-hover text-content-inverse font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <Pill class="w-3.5 h-3.5" />
                   <span>تعديل الروشتة</span>
@@ -241,7 +241,7 @@
                   v-if="prescribedDrugsCount > 0"
                   type="button"
                   @click="handleQuickPrint"
-                  class="py-2 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-content-primary border border-line-subtle font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                  class="py-1.5 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-content-primary border border-line-subtle font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
                   title="طباعة سريعة للروشتة الحالية"
                 >
                   <Printer class="w-3.5 h-3.5 text-brand" />
@@ -251,24 +251,24 @@
             </div>
 
             <!-- CARD 3: Labs & Attachments (Alt+3) -->
-            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all">
+            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-3 shadow-xs flex flex-col justify-between transition-all">
               <div>
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <div class="p-2 rounded-xl bg-brand-subtle text-brand border border-brand-border">
-                      <FlaskConical class="w-5 h-5" />
+                    <div class="p-1.5 rounded-xl bg-brand-subtle text-brand border border-brand-border">
+                      <FlaskConical class="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 class="text-sm font-black text-content-primary">3. التحاليل والمرفقات</h3>
-                      <p class="text-[11px] text-content-muted">طلب الفحوصات ومراجعة الأشعة</p>
+                      <h3 class="text-xs lg:text-sm font-black text-content-primary">3. التحاليل والمرفقات</h3>
+                      <p class="text-[10px] text-content-muted">طلب الفحوصات ومراجعة الأشعة</p>
                     </div>
                   </div>
-                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
                     Alt+3
                   </span>
                 </div>
 
-                <div class="mt-3 p-3 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
+                <div class="mt-2 p-2 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
                   <div class="flex justify-between text-content-secondary">
                     <span>فحوصات مطلوبة اليوم:</span>
                     <span class="font-bold font-mono text-content-primary">{{ requestedLabsCount }} تحاليل</span>
@@ -280,11 +280,11 @@
                 </div>
               </div>
 
-              <div class="mt-4 pt-3 border-t border-line-subtle">
+              <div class="mt-2 pt-2 border-t border-line-subtle">
                 <button
                   type="button"
                   @click="showLabsModal = true"
-                  class="w-full py-2 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-brand border border-brand-border font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full py-1.5 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-brand border border-brand-border font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <FlaskConical class="w-3.5 h-3.5" />
                   <span>إدارة التحاليل والمرفقات</span>
@@ -293,24 +293,24 @@
             </div>
 
             <!-- CARD 4: Extra Services & Followup (Alt+4) -->
-            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all">
+            <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-3 shadow-xs flex flex-col justify-between transition-all">
               <div>
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-1.5">
                   <div class="flex items-center gap-2">
-                    <div class="p-2 rounded-xl bg-status-warning-bg text-status-warning border border-status-warning-border">
-                      <CalendarCheck class="w-5 h-5" />
+                    <div class="p-1.5 rounded-xl bg-status-warning-bg text-status-warning border border-status-warning-border">
+                      <CalendarCheck class="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 class="text-sm font-black text-content-primary">4. خدمات إضافية وإعادة</h3>
-                      <p class="text-[11px] text-content-muted">إجراءات العيادة وموعد الاستشارة</p>
+                      <h3 class="text-xs lg:text-sm font-black text-content-primary">4. خدمات إضافية وإعادة</h3>
+                      <p class="text-[10px] text-content-muted">إجراءات العيادة وموعد الاستشارة</p>
                     </div>
                   </div>
-                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-elevated text-content-muted font-bold">
                     Alt+4
                   </span>
                 </div>
 
-                <div class="mt-3 p-3 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
+                <div class="mt-2 p-2 rounded-xl bg-surface-elevated/70 border border-line-subtle text-xs space-y-1">
                   <div class="flex justify-between text-content-secondary">
                     <span>إجمالي الخدمات الإضافية:</span>
                     <span class="font-bold font-mono text-status-warning">{{ extraServicesTotal }} ج.م</span>
@@ -322,11 +322,11 @@
                 </div>
               </div>
 
-              <div class="mt-4 pt-3 border-t border-line-subtle">
+              <div class="mt-2 pt-2 border-t border-line-subtle">
                 <button
                   type="button"
                   @click="showExtraModal = true"
-                  class="w-full py-2 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-brand border border-brand-border font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  class="w-full py-1.5 px-3 rounded-xl bg-surface-elevated hover:bg-surface-header text-brand border border-brand-border font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Plus class="w-3.5 h-3.5" />
                   <span>تعديل الخدمات والإعادة</span>
