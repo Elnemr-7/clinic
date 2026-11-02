@@ -1,0 +1,54 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Third Party Services
+    |--------------------------------------------------------------------------
+    |
+    | This file is for storing the credentials for third party services such
+    | as Resend, Postmark, AWS, and more. This file provides the de facto
+    | location for this type of information, allowing packages to have
+    | a conventional file to locate the various service credentials.
+    |
+    */
+
+    'postmark' => [
+        'key' => env('POSTMARK_API_KEY'),
+    ],
+
+    'resend' => [
+        'key' => env('RESEND_API_KEY'),
+    ],
+
+    'ses' => [
+        'key' => env('AWS_ACCESS_KEY_ID'),
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+    ],
+
+    'slack' => [
+        'notifications' => [
+            'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
+            'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
+        ],
+    ],
+
+    'whatsapp' => [
+        'service_url' => env('WHATSAPP_SERVICE_URL', 'http://127.0.0.1:3000'),
+        'secret' => env('WHATSAPP_SERVER_SECRET', 'vertex_wa_secure_secret_key_2026'),
+    ],
+
+    'cloudflare' => [
+        'zone_id' => env('CLOUDFLARE_ZONE_ID'),
+        'api_token' => env('CLOUDFLARE_API_TOKEN'),
+        'fallback_origin' => env('CLOUDFLARE_FALLBACK_ORIGIN', 'cname.platform.com'),
+    ],
+
+    'fawry' => [
+        'merchant_code' => env('FAWRY_MERCHANT_CODE'),
+        'security_key' => env('FAWRY_SECURITY_KEY'),
+    ],
+
+];
