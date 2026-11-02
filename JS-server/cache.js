@@ -2,12 +2,36 @@
  * In-memory Cache Manager with TTL support and invalidation on update.
  */
 class MemoryCache {
-    constructor() {
+    constructor(cleanupIntervalSeconds = 60) {
         this.store = new Map();
         this.stats = {
             hits: 0,
             misses: 0,
         };
+
+        // Active background TTL purge timer to prevent memory leaks
+        if (cleanupIntervalSeconds > 0) {
+            this.cleanupTimer = setInterval(() => {
+                this.purgeExpired();
+            }, cleanupIntervalSeconds * 1000);
+
+            // Allow process to exit cleanly if this is the only active timer
+            if (this.cleanupTimer.unref) {
+                this.cleanupTimer.unref();
+            }
+        }
+    }
+
+    /**
+     * Purge expired items from cache actively.
+     */
+    purgeExpired() {
+        const now = Date.now();
+        for (const [key, item] of this.store.entries()) {
+            if (item.expiresAt && now > item.expiresAt) {
+                this.store.delete(key);
+            }
+        }
     }
 
     /**

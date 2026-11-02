@@ -1,94 +1,85 @@
 <template>
-  <div class="flex min-h-screen bg-slate-900">
-    <AdminSidebar />
-    <div class="flex-1 flex flex-col">
-      <AdminHeader title="لوحة الإحصائيات والمؤشرات العامة" />
+  <div class="space-y-6 text-right select-none font-sans" dir="rtl">
+    <!-- Quick Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-surface-card border border-line-subtle p-5 rounded-2xl shadow-xs">
+        <div class="text-2xl mb-1.5">👨‍⚕️</div>
+        <p class="text-xs text-content-muted font-bold">إجمالي الأطباء المشتركين</p>
+        <h3 class="text-2xl font-black text-content-primary mt-1 font-mono tabular-nums">{{ stats?.total_doctors ?? 0 }}</h3>
+        <span class="text-[10px] text-brand font-medium mt-1.5 block">حسابات نشطة على المنصة</span>
+      </div>
 
-      <main class="flex-1 p-8 space-y-8">
-        <!-- Quick Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl relative overflow-hidden">
-            <div class="text-3xl mb-2">👨‍⚕️</div>
-            <p class="text-xs text-slate-400 font-medium">إجمالي الأطباء المشتركين</p>
-            <h3 class="text-3xl font-bold text-white mt-1">{{ stats?.total_doctors ?? 0 }}</h3>
-            <span class="text-[10px] text-emerald-400 mt-2 block">حسابات نشطة على المنصة</span>
-          </div>
+      <div class="bg-surface-card border border-line-subtle p-5 rounded-2xl shadow-xs">
+        <div class="text-2xl mb-1.5">🏥</div>
+        <p class="text-xs text-content-muted font-bold">العيادات والفروع العاملة</p>
+        <h3 class="text-2xl font-black text-content-primary mt-1 font-mono tabular-nums">{{ stats?.active_clinics ?? 0 }}</h3>
+        <span class="text-[10px] text-status-info font-medium mt-1.5 block">فروع تستقبل المرضى اليوم</span>
+      </div>
 
-          <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl relative overflow-hidden">
-            <div class="text-3xl mb-2">🏥</div>
-            <p class="text-xs text-slate-400 font-medium">العيادات والفروع العاملة</p>
-            <h3 class="text-3xl font-bold text-white mt-1">{{ stats?.active_clinics ?? 0 }}</h3>
-            <span class="text-[10px] text-cyan-400 mt-2 block">فروع تستقبل المرضى اليوم</span>
-          </div>
+      <div class="bg-surface-card border border-line-subtle p-5 rounded-2xl shadow-xs">
+        <div class="text-2xl mb-1.5">📅</div>
+        <p class="text-xs text-content-muted font-bold">حجوزات الكشف اليوم</p>
+        <h3 class="text-2xl font-black text-content-primary mt-1 font-mono tabular-nums">{{ stats?.bookings_today ?? 0 }}</h3>
+        <span class="text-[10px] text-status-warning font-medium mt-1.5 block">عبر الموقع وعيادات الاستقبال</span>
+      </div>
 
-          <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl relative overflow-hidden">
-            <div class="text-3xl mb-2">📅</div>
-            <p class="text-xs text-slate-400 font-medium">حجوزات الكشف اليوم</p>
-            <h3 class="text-3xl font-bold text-white mt-1">{{ stats?.bookings_today ?? 0 }}</h3>
-            <span class="text-[10px] text-amber-400 mt-2 block">عبر الموقع وعيادات الاستقبال</span>
-          </div>
+      <div class="bg-surface-card border border-line-subtle p-5 rounded-2xl shadow-xs">
+        <div class="text-2xl mb-1.5">💵</div>
+        <p class="text-xs text-content-muted font-bold">إيرادات الاشتراكات هذا الشهر</p>
+        <h3 class="text-2xl font-black text-brand mt-1 font-mono tabular-nums">{{ stats?.monthly_revenue_egp ?? 0 }} ج.م</h3>
+        <span class="text-[10px] text-brand font-medium mt-1.5 block">مدفوعات وفوري والتحويلات</span>
+      </div>
+    </div>
 
-          <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl relative overflow-hidden">
-            <div class="text-3xl mb-2">💵</div>
-            <p class="text-xs text-slate-400 font-medium">إيرادات الاشتراكات هذا الشهر</p>
-            <h3 class="text-3xl font-bold text-emerald-400 mt-1">{{ stats?.monthly_revenue_egp ?? 0 }} ج.م</h3>
-            <span class="text-[10px] text-emerald-400 mt-2 block">مدفوعات وفوري والتحويلات</span>
-          </div>
-        </div>
-
-        <!-- Messaging Usage & Leads Overview -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl">
-            <h3 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-              <span>💬</span>
-              <span>استهلاك رسائل الواتساب والـ SMS هذا الشهر</span>
-            </h3>
-            <div class="space-y-4">
-              <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                <div>
-                  <p class="text-xs text-slate-400 font-medium">رسائل الواتساب المستهلكة (Baileys)</p>
-                  <p class="text-xl font-bold text-emerald-400 mt-1">{{ stats?.whatsapp_used_this_month ?? 0 }} رسالة</p>
-                </div>
-                <div class="text-3xl">🟢</div>
-              </div>
-              <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                <div>
-                  <p class="text-xs text-slate-400 font-medium">رسائل الـ SMS الرسمية المرسلة</p>
-                  <p class="text-xl font-bold text-cyan-400 mt-1">{{ stats?.sms_used_this_month ?? 0 }} رسالة</p>
-                </div>
-                <div class="text-3xl">📱</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-slate-950 border border-slate-800 p-6 rounded-2xl flex flex-col justify-between">
+    <!-- Messaging Usage & Leads Overview -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-surface-card border border-line-subtle p-5 rounded-2xl shadow-xs">
+        <h3 class="text-sm font-bold text-content-primary mb-3 flex items-center gap-2">
+          <span>💬</span>
+          <span>استهلاك رسائل الواتساب والـ SMS هذا الشهر</span>
+        </h3>
+        <div class="space-y-3">
+          <div class="bg-surface-elevated p-3.5 rounded-xl border border-line-subtle flex justify-between items-center">
             <div>
-              <h3 class="text-base font-bold text-white mb-2 flex items-center gap-2">
-                <span>🔔</span>
-                <span>طلبات انضمام الأطباء المعلقة (Leads)</span>
-              </h3>
-              <p class="text-xs text-slate-400 mb-6">أطباء جدد سجلوا عبر الصفحة التسويقية بانتظار التواصل والتفعيل</p>
-              <div class="text-4xl font-black text-amber-400 mb-2">
-                {{ stats?.pending_leads ?? 0 }} طلب جديد
-              </div>
+              <p class="text-xs text-content-muted font-medium">رسائل الواتساب المستهلكة (Baileys)</p>
+              <p class="text-lg font-bold text-status-success font-mono mt-0.5">{{ stats?.whatsapp_used_this_month ?? 0 }} رسالة</p>
             </div>
-            <router-link
-              to="/leads"
-              class="w-full bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 text-center font-bold py-3 rounded-xl text-sm transition"
-            >
-              عرض وتحويل طلبات الأطباء إلى حسابات نشطة ←
-            </router-link>
+            <div class="text-2xl">🟢</div>
+          </div>
+          <div class="bg-surface-elevated p-3.5 rounded-xl border border-line-subtle flex justify-between items-center">
+            <div>
+              <p class="text-xs text-content-muted font-medium">رسائل الـ SMS الرسمية المرسلة</p>
+              <p class="text-lg font-bold text-status-info font-mono mt-0.5">{{ stats?.sms_used_this_month ?? 0 }} رسالة</p>
+            </div>
+            <div class="text-2xl">📱</div>
           </div>
         </div>
-      </main>
+      </div>
+
+      <div class="bg-surface-card border border-line-subtle p-5 rounded-2xl shadow-xs flex flex-col justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-content-primary mb-1 flex items-center gap-2">
+            <span>🔔</span>
+            <span>طلبات انضمام الأطباء المعلقة (Leads)</span>
+          </h3>
+          <p class="text-xs text-content-muted mb-4">أطباء جدد سجلوا عبر الصفحة التسويقية بانتظار التواصل والتفعيل</p>
+          <div class="text-3xl font-black text-status-warning font-mono mb-2">
+            {{ stats?.pending_leads ?? 0 }} طلب جديد
+          </div>
+        </div>
+        <router-link
+          to="/leads"
+          class="w-full bg-surface-elevated hover:bg-surface-card text-brand border border-brand-border text-center font-bold py-2.5 rounded-xl text-xs transition"
+        >
+          عرض وتحويل طلبات الأطباء إلى حسابات نشطة ←
+        </router-link>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { onMounted, computed } from 'vue';
-import AdminSidebar from '../components/layout/AdminSidebar.vue';
-import AdminHeader from '../components/layout/AdminHeader.vue';
 import { useDashboardStore } from '../stores/dashboard';
 
 const dashboardStore = useDashboardStore();

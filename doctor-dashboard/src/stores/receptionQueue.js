@@ -8,8 +8,8 @@ export const useReceptionQueueStore = defineStore('receptionQueue', {
     selectedClinicId: null,
   }),
   actions: {
-    async fetchQueue(clinicId = null, date = null, shiftId = null) {
-      this.loading = true;
+    async fetchQueue(clinicId = null, date = null, shiftId = null, silent = false) {
+      if (!silent) this.loading = true;
       try {
         const params = {
           clinic_id: clinicId || this.selectedClinicId,
@@ -20,7 +20,7 @@ export const useReceptionQueueStore = defineStore('receptionQueue', {
         const response = await client.get('/reception/queue', { params });
         this.appointments = response.data.data;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
     async quickBook(payload) {

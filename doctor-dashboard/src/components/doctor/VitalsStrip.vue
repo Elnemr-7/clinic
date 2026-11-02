@@ -1,29 +1,29 @@
 <template>
-  <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4">
-    <div class="flex items-center justify-between mb-3">
-      <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+  <div class="bg-surface-card border border-line-subtle rounded-2xl p-3.5 shadow-xs">
+    <div class="flex items-center justify-between mb-2.5">
+      <span class="text-xs font-bold text-content-primary flex items-center gap-1.5">
         <span>🩺</span>
-        <span>القياسات الحيوية للمريض (مقارنة بالزيارة السابقة)</span>
+        <span>القياسات الحيوية (مقارنة بالزيارة السابقة)</span>
       </span>
-      <span class="text-[11px] text-slate-500">تم القياس بواسطة الاستقبال</span>
+      <span class="text-[10px] text-content-muted">مسجلة بواسطة الاستقبال</span>
     </div>
 
-    <div v-if="enabledVitals.length === 0" class="text-xs text-slate-500 py-2 text-center">
-      لم يتم تفعيل قياسات حيوية في الإعدادات
+    <div v-if="enabledVitals.length === 0" class="text-xs text-content-muted py-2 text-center">
+      لم يتم تفعيل قياسات حيوية
     </div>
 
-    <div v-else class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div v-else class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
       <div
         v-for="item in enabledVitals"
         :key="item.key"
-        class="bg-slate-900 border border-slate-800/80 p-3 rounded-xl flex flex-col justify-between"
+        class="bg-surface-elevated border border-line-subtle p-2.5 rounded-xl flex flex-col justify-between"
       >
-        <span class="text-[11px] font-medium text-slate-400">{{ item.label }}</span>
-        <div class="mt-1 flex items-baseline gap-2">
-          <span class="text-lg font-bold text-white">
+        <span class="text-[10px] font-medium text-content-secondary truncate">{{ item.label }}</span>
+        <div class="mt-1 flex items-baseline gap-1.5">
+          <span class="text-sm lg:text-base font-extrabold text-content-primary font-mono tabular-nums">
             {{ getVitalDisplay(currentData, item.key, item.unit) }}
           </span>
-          <span v-if="hasPrevious(item.key)" class="text-[10px] text-slate-500 line-through">
+          <span v-if="hasPrevious(item.key)" class="text-[10px] text-content-muted line-through font-mono">
             ({{ getVitalDisplay(prevData, item.key, item.unit) }})
           </span>
         </div>
@@ -68,46 +68,31 @@ const prevData = computed(() => {
 
 const defaultVitals = [
   { key: 'bp', label: 'ضغط الدم', unit: 'mmHg', enabled: true },
-  { key: 'pulse', label: 'النبض', unit: 'BPM', enabled: true },
+  { key: 'pulse', label: 'النبض', unit: 'bpm', enabled: true },
   { key: 'temp', label: 'الحرارة', unit: '°C', enabled: true },
-  { key: 'weight', label: 'الوزن', unit: 'كجم', enabled: true },
-  { key: 'sugar', label: 'السكر العشوائي', unit: 'mg/dL', enabled: true },
-  { key: 'oxygen', label: 'نسبة الأكسجين', unit: '%', enabled: true },
+  { key: 'weight', label: 'الوزن', unit: 'kg', enabled: true },
+  { key: 'sugar', label: 'السكر', unit: 'mg/dL', enabled: true },
+  { key: 'oxygen', label: 'الأكسجين', unit: '%', enabled: true },
 ];
 
 const enabledVitals = computed(() => {
-  if (Array.isArray(props.vitalsConfig) && props.vitalsConfig.length > 0) {
-    return props.vitalsConfig.filter((v) => v.enabled !== false);
-  }
-  if (props.vitalsConfig && typeof props.vitalsConfig === 'object' && Object.keys(props.vitalsConfig).length > 0) {
-    return defaultVitals.filter(v => props.vitalsConfig[v.key] !== false);
+  const conf = props.vitalsConfig;
+  if (Array.isArray(conf) && conf.length > 0) {
+    return conf.filter(v => v.enabled !== false);
   }
   return defaultVitals;
 });
 
-const getVitalDisplay = (source, key, unit) => {
-  const data = source || currentData.value || {};
-  if (!data || typeof data !== 'object') return 'لم يقاس';
-
-  let val = null;
-
-  if (key === 'bp') val = data.blood_pressure || data.bp;
-  else if (key === 'pulse') val = data.pulse;
-  else if (key === 'temp') val = data.temperature || data.temp;
-  else if (key === 'weight') val = data.weight;
-  else if (key === 'height') val = data.height;
-  else if (key === 'sugar') val = data.blood_sugar || data.sugar;
-  else if (key === 'oxygen') val = data.oxygen_saturation || data.oxygen;
-  else val = data[key];
-
-  if (val !== undefined && val !== null && val !== '') {
-    return unit ? `${val} ${unit}` : `${val}`;
+const getVitalDisplay = (dataObj, key, unit) => {
+  if (!dataObj || dataObj[key] === undefined || dataObj[key] === null || dataObj[key] === '') {
+    return '-';
   }
-  return 'لم يقاس';
+  return `${dataObj[key]} ${unit || ''}`.trim();
 };
 
 const hasPrevious = (key) => {
   if (!prevData.value) return false;
-  return getVitalDisplay(prevData.value, key, '') !== 'لم يقاس';
+  const val = prevData.value[key];
+  return val !== undefined && val !== null && val !== '';
 };
 </script>

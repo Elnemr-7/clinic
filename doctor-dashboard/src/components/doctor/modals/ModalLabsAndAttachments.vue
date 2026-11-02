@@ -120,6 +120,21 @@ const onFileSelected = (e) => {
   }
 };
 
+const isDirty = () => {
+  if (selectedFile.value) return true;
+  if (labQuery.value && labQuery.value.trim().length > 0) return true;
+  return false;
+};
+
+const handleSafeClose = () => {
+  if (isDirty()) {
+    if (!confirm('لديك تعديلات غير محفوظة. هل أنت متأكد من الإغلاق؟')) {
+      return;
+    }
+  }
+  emit('close');
+};
+
 const handleUploadAttachment = async () => {
   if (!selectedFile.value || !props.appointment?.patient?.id) return;
   uploading.value = true;
@@ -143,31 +158,35 @@ const handleUploadAttachment = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden text-right" dir="rtl">
+  <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden text-right" dir="rtl">
       <!-- Modal Header -->
-      <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-700 text-white flex items-center justify-between">
+      <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-white/10 rounded-xl">
             <FlaskConical class="w-6 h-6" />
           </div>
           <div>
             <h3 class="text-xl font-bold">التحاليل، الأشعة، والمرفقات السريرية</h3>
-            <p class="text-xs text-indigo-100 font-medium">المريض: {{ appointment?.patient?.name }}</p>
+            <p class="text-xs text-brand-subtle/80 font-medium">المريض: {{ appointment?.patient?.name }}</p>
           </div>
         </div>
-        <button @click="$emit('close')" class="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition">
+        <button @click="handleSafeClose" class="p-2 text-content-inverse/80 hover:text-content-inverse hover:bg-white/10 rounded-xl transition">
           <X class="w-6 h-6" />
         </button>
       </div>
 
       <!-- Tab Buttons -->
-      <div class="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 gap-3">
+      <div class="flex border-b border-line-subtle bg-surface-elevated/40 px-6 pt-3 gap-3">
         <button
           @click="activeTab = 'labs'"
           :class="[
             'pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition',
             activeTab === 'labs'
+              ? 'border-brand text-brand'
+              : 'border-transparent text-content-muted hover:text-content-primary'
+          ]"
+        >
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           ]"

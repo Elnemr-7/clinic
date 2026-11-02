@@ -1,0 +1,139 @@
+/* src/assets/css/theme.css — SINGLE SOURCE OF TRUTH FOR LIGHT & DARK THEMES */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* 1. App Surfaces & Backgrounds (Light Mode - Clean Medical Daylight) */
+  --bg-app: 248 250 252;          /* #F8FAFC - Main viewport background */
+  --bg-header: 255 255 255;       /* #FFFFFF - Persistent top header & sidebar */
+  --bg-card: 255 255 255;         /* #FFFFFF - Standard card & table surface */
+  --bg-elevated: 241 245 249;     /* #F1F5F9 - Secondary/hover surface, table header, modal footer */
+  --bg-input: 255 255 255;        /* #FFFFFF - Form input background */
+  --bg-overlay: 15 23 42;         /* #0F172A - Modal backdrop (use with opacity) */
+
+  /* 2. Typography & Content Hierarchy */
+  --text-primary: 15 23 42;       /* #0F172A - Headings, patient names, primary values */
+  --text-secondary: 71 85 105;    /* #475569 - Labels, table cells, descriptions */
+  --text-muted: 148 163 184;      /* #94A3B8 - Placeholders, previous visit muted text, hints */
+  --text-inverse: 255 255 255;    /* #FFFFFF - Text on primary brand buttons */
+
+  /* 3. Borders & Dividers */
+  --border-subtle: 226 232 240;   /* #E2E8F0 - Card & table borders */
+  --border-strong: 203 213 225;   /* #CBD5E1 - Input borders & active dividers */
+
+  /* 4. Primary Brand Accent (Medical Teal) */
+  --brand-primary: 15 118 110;    /* #0F766E - Primary buttons, active tab indicator */
+  --brand-hover: 17 94 89;        /* #115E59 - Primary button hover */
+  --brand-subtle: 240 253 250;    /* #F0FDFA - Active nav pill background, selected row */
+  --brand-border: 153 246 228;    /* #99F6E4 - Brand badge border */
+
+  /* 5. Semantic Clinical Status Colors */
+  /* Success / In Consultation / Completed (Emerald) */
+  --status-success: 4 120 87;         /* #047857 */
+  --status-success-bg: 236 253 245;   /* #ECFDF5 */
+  --status-success-border: 167 243 208;/* #A7F3D0 */
+
+  /* Info / Arrived Waiting in Reception (Royal Blue) */
+  --status-info: 29 78 216;           /* #1D4ED8 */
+  --status-info-bg: 239 246 255;      /* #EFF6FF */
+  --status-info-border: 191 219 254;  /* #BFDBFE */
+
+  /* Warning / Postponed / Unpaid Extra Services (Amber) */
+  --status-warning: 180 83 9;         /* #B45309 */
+  --status-warning-bg: 255 251 235;   /* #FFFBEB */
+  --status-warning-border: 253 230 138;/* #FDE68A */
+
+  /* Danger / Critical Medical Alert / Drug Allergy / Cancel (Crimson Red) */
+  --status-danger: 185 28 28;         /* #B91C1C */
+  --status-danger-bg: 254 242 242;    /* #FEF2F2 */
+  --status-danger-border: 254 202 202;/* #FECACA */
+}
+
+html.dark, [data-theme="dark"] {
+  /* 1. App Surfaces & Backgrounds (Dark Mode - Eye-Safe Clinical Slate) */
+  --bg-app: 11 17 32;             /* #0B1120 - Deep clinical slate canvas */
+  --bg-header: 15 23 42;          /* #0F172A - Persistent header & sidebar */
+  --bg-card: 30 41 59;            /* #1E293B - Card & table surface */
+  --bg-elevated: 51 65 85;        /* #334155 - Hover surface, table header, modal sub-surface */
+  --bg-input: 15 23 42;           /* #0F172A - Form input background */
+  --bg-overlay: 2 6 23;           /* #020617 - Modal backdrop */
+
+  /* 2. Typography & Content Hierarchy */
+  --text-primary: 248 250 252;    /* #F8FAFC - Crisp white-slate headings & values */
+  --text-secondary: 203 213 225;  /* #CBD5E1 - Readable secondary labels */
+  --text-muted: 100 116 139;      /* #64748B - Muted hints */
+  --text-inverse: 255 255 255;    /* #FFFFFF */
+
+  /* 3. Borders & Dividers */
+  --border-subtle: 51 65 85;      /* #334155 - Subtle dark border */
+  --border-strong: 71 85 105;     /* #475569 - Input border */
+
+  /* 4. Primary Brand Accent (Luminous Medical Teal for Dark Mode) */
+  --brand-primary: 20 184 166;    /* #14B8A6 */
+  --brand-hover: 13 148 136;      /* #0D9488 */
+  --brand-subtle: 19 78 74;       /* #134E4A */
+  --brand-border: 45 212 191;     /* #2DD4BF */
+
+  /* 5. Semantic Clinical Status Colors (Dark-Adjusted) */
+  --status-success: 52 211 153;       /* #34D399 */
+  --status-success-bg: 6 78 59;       /* #064E3B */
+  --status-success-border: 5 150 105; /* #059669 */
+
+  --status-info: 96 165 250;          /* #60A5FA */
+  --status-info-bg: 30 58 138;        /* #1E3A8A */
+  --status-info-border: 59 130 246;   /* #3B82F6 */
+
+  --status-warning: 251 191 36;       /* #FBBF24 */
+  --status-warning-bg: 120 53 15;     /* #78350F */
+  --status-warning-border: 217 119 6; /* #D97706 */
+
+  --status-danger: 248 113 113;       /* #F87171 */
+  --status-danger-bg: 127 29 29;      /* #7F1D1D */
+  --status-danger-border: 220 38 38;  /* #DC2626 */
+}
+
+@theme {
+  --color-surface-app: rgb(var(--bg-app));
+  --color-surface-header: rgb(var(--bg-header));
+  --color-surface-card: rgb(var(--bg-card));
+  --color-surface-elevated: rgb(var(--bg-elevated));
+  --color-surface-input: rgb(var(--bg-input));
+  --color-surface-overlay: rgb(var(--bg-overlay));
+
+  --color-content-primary: rgb(var(--text-primary));
+  --color-content-secondary: rgb(var(--text-secondary));
+  --color-content-muted: rgb(var(--text-muted));
+  --color-content-inverse: rgb(var(--text-inverse));
+
+  --color-line-subtle: rgb(var(--border-subtle));
+  --color-line-strong: rgb(var(--border-strong));
+
+  --color-brand: rgb(var(--brand-primary));
+  --color-brand-hover: rgb(var(--brand-hover));
+  --color-brand-subtle: rgb(var(--brand-subtle));
+  --color-brand-border: rgb(var(--brand-border));
+
+  --color-status-success: rgb(var(--status-success));
+  --color-status-success-bg: rgb(var(--status-success-bg));
+  --color-status-success-border: rgb(var(--status-success-border));
+  --color-status-info: rgb(var(--status-info));
+  --color-status-info-bg: rgb(var(--status-info-bg));
+  --color-status-info-border: rgb(var(--status-info-border));
+  --color-status-warning: rgb(var(--status-warning));
+  --color-status-warning-bg: rgb(var(--status-warning-bg));
+  --color-status-warning-border: rgb(var(--status-warning-border));
+  --color-status-danger: rgb(var(--status-danger));
+  --color-status-danger-bg: rgb(var(--status-danger-bg));
+  --color-status-danger-border: rgb(var(--status-danger-border));
+
+  --font-sans: "IBM Plex Sans Arabic", "Cairo", sans-serif;
+  --font-display: "Cairo", "IBM Plex Sans Arabic", sans-serif;
+}
+
+@layer base {
+  body {
+    font-family: 'IBM Plex Sans Arabic', 'Cairo', system-ui, -apple-system, sans-serif;
+    background-color: rgb(var(--bg-app));
+    color: rgb(var(--text-primary));
+  }
+}

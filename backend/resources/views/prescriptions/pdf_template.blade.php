@@ -51,6 +51,7 @@
             margin-bottom: 12px;
             border-bottom: 1px dashed #cbd5e1;
             padding-bottom: 8px;
+            page-break-inside: avoid;
         }
         .drug-name {
             font-size: 14px;

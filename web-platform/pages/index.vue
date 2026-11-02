@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useClinicBooking } from '../composables/useClinicBooking';
 import PlatformHero from '../components/platform/PlatformHero.vue';
 import PlatformFeatures from '../components/platform/PlatformFeatures.vue';
@@ -15,22 +15,39 @@ import TemplateOrthopedics from '../components/templates/TemplateOrthopedics.vue
 
 const { resolveTenant } = useClinicBooking();
 
-const doctorTenant = ref(null);
-const loading = ref(true);
-
-onMounted(async () => {
-  try {
-    const host = window.location.host;
-    // Check if host belongs to a doctor tenant
-    const tenant = await resolveTenant(host);
-    if (tenant) {
-      doctorTenant.value = tenant;
-    }
-  } catch (e) {
-    // Platform domain or no tenant match
-  } finally {
-    loading.value = false;
+// SSR Host Resolution
+const headers = useRequestHeaders(['host']);
+const currentHost = computed(() => {
+  if (import.meta.server) {
+    return (headers.host || '').split(':')[0].toLowerCase();
   }
+  return typeof window !== 'undefined' ? window.location.host.split(':')[0].toLowerCase() : '';
+});
+
+const isPlatformDomain = computed(() => {
+  const h = currentHost.value;
+  return !h || h === 'localhost' || h === '127.0.0.1' || h.startsWith('192.168.') || h.includes('platform.') || h === 'clinic-platform.com';
+});
+
+const { data: doctorTenant } = await useAsyncData('tenant-by-host', async () => {
+  if (isPlatformDomain.value) {
+    return null;
+  }
+  try {
+    return await resolveTenant(currentHost.value);
+  } catch (e) {
+    return null;
+  }
+}, {
+  watch: [currentHost]
+});
+
+// Dynamic SEO & OpenGraph tags
+useSeoMeta({
+  title: () => doctorTenant.value ? `${doctorTenant.value.clinic_name || doctorTenant.value.name || 'عيادة تخصصية'} | حجز موعد إلكتروني` : 'منصة العيادات الذكية | حجز المواعيد وإدارة العيادات',
+  description: () => doctorTenant.value?.bio || doctorTenant.value?.specialty_title || 'احجز موعدك الآن بعيادة الطبيب وتتبع رقمك ودورك بالعيادة مباشرة.',
+  ogTitle: () => doctorTenant.value ? `${doctorTenant.value.clinic_name || doctorTenant.value.name}` : 'منصة العيادات الذكية',
+  ogDescription: () => doctorTenant.value?.bio || 'نظام إدارة العيادات والحجز المسبق الأكثر سرعة وأماناً',
 });
 
 const getTemplateComponent = (specialty) => {

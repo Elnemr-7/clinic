@@ -6,19 +6,20 @@ use App\Models\Appointment;
 use App\Models\Clinic;
 use App\Models\Patient;
 use App\Scopes\TenantScope;
+use App\Support\PhoneNormalizer;
 use Carbon\Carbon;
 
 class FollowupDetectorService
 {
     public function checkEligibility(int $tenantId, int $clinicId, string $phone): array
     {
-        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        $normalizedPhone = PhoneNormalizer::normalizeEgyptianPhone($phone);
 
         $patient = Patient::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $tenantId)
-            ->where(function ($q) use ($cleanPhone, $phone) {
-                $q->where('phone', $phone)
-                  ->orWhere('phone', $cleanPhone);
+            ->where(function ($q) use ($normalizedPhone, $phone) {
+                $q->where('phone', $normalizedPhone)
+                  ->orWhere('phone', $phone);
             })
             ->first();
 
@@ -39,8 +40,8 @@ class FollowupDetectorService
             ];
         }
 
-        $daysLimit = $clinic->followup_days_limit ?? 10;
-        $cutOffDate = Carbon::today()->subDays($daysLimit);
+        $daysLimit = (int)($clinic->followup_days_limit ?? 10);
+        $cutOffDate = Carbon::now('Africa/Cairo')->startOfDay()->subDays($daysLimit);
 
         $lastCompletedVisit = Appointment::withoutGlobalScope(TenantScope::class)
             ->where('tenant_id', $tenantId)
@@ -48,26 +49,34 @@ class FollowupDetectorService
             ->where('patient_id', $patient->id)
             ->where('visit_type', 'new_visit')
             ->where('status', 'completed')
-            ->whereDate('appointment_date', '>=', $cutOffDate)
+            ->whereDate('appointment_date', '>=', $cutOffDate->toDateString())
             ->latest('appointment_date')
             ->first();
 
         if ($lastCompletedVisit) {
-            // Check if follow-up was already consumed for this specific previous appointment date
+            // Verify no subsequent followup appointment exists (status IN booked, arrived_waiting, in_consultation, completed)
             $consumedFollowup = Appointment::withoutGlobalScope(TenantScope::class)
                 ->where('tenant_id', $tenantId)
                 ->where('clinic_id', $clinicId)
                 ->where('patient_id', $patient->id)
                 ->where('visit_type', 'followup')
                 ->where('appointment_date', '>', $lastCompletedVisit->appointment_date)
-                ->whereIn('status', ['arrived_waiting', 'in_consultation', 'completed'])
+                ->whereIn('status', ['booked', 'arrived_waiting', 'in_consultation', 'completed'])
                 ->exists();
 
             if (!$consumedFollowup) {
+                $visitDate = Carbon::parse($lastCompletedVisit->appointment_date, 'Africa/Cairo')->startOfDay();
+                $todayCairo = Carbon::now('Africa/Cairo')->startOfDay();
+                $daysElapsed = $visitDate->diffInDays($todayCairo);
+                $daysRemaining = max(0, $daysLimit - $daysElapsed);
+
                 return [
                     'eligible' => true,
+                    'is_followup' => true,
                     'patient' => $patient,
+                    'patient_name' => $patient->name,
                     'last_visit_date' => $lastCompletedVisit->appointment_date->format('Y-m-d'),
+                    'days_remaining' => $daysRemaining,
                     'followup_price' => (float)$clinic->followup_price,
                     'message' => 'المريض داخل فترة الاستشارة المسموحة (آخر كشف بتاريخ ' . $lastCompletedVisit->appointment_date->format('Y-m-d') . ')',
                 ];
@@ -76,7 +85,9 @@ class FollowupDetectorService
 
         return [
             'eligible' => false,
+            'is_followup' => false,
             'patient' => $patient,
+            'patient_name' => $patient->name,
             'reason' => 'no_valid_new_visit',
             'consultation_price' => (float)$clinic->consultation_price,
         ];

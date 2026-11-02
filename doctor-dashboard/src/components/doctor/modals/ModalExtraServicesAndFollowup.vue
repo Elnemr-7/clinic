@@ -69,6 +69,15 @@ const selectedTotal = () => {
     .reduce((sum, s) => sum + Number(s.price || 0), 0);
 };
 
+const handleSafeClose = () => {
+  if (selectedServiceIds.value.length > 0 || followupDate.value || followupNotes.value) {
+    if (!confirm('لديك تعديلات غير محفوظة في الخدمات أو موعد الإعادة. هل تريد الإغلاق بدون حفظ؟')) {
+      return;
+    }
+  }
+  emit('close');
+};
+
 const handleSave = async () => {
   if (!props.appointment) return;
   saving.value = true;
@@ -91,20 +100,20 @@ const handleSave = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-right" dir="rtl">
+  <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden text-right" dir="rtl">
       <!-- Modal Header -->
-      <div class="px-6 py-4 bg-gradient-to-r from-amber-600 to-orange-700 text-white flex items-center justify-between">
+      <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-white/10 rounded-xl">
             <DollarSign class="w-6 h-6" />
           </div>
           <div>
             <h3 class="text-xl font-bold">الخدمات الإضافية وموعد الإعادة / الاستشارة</h3>
-            <p class="text-xs text-amber-100 font-medium">المريض: {{ appointment?.patient?.name }}</p>
+            <p class="text-xs text-brand-subtle/80 font-medium">المريض: {{ appointment?.patient?.name }}</p>
           </div>
         </div>
-        <button @click="$emit('close')" class="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition">
+        <button @click="handleSafeClose" class="p-2 text-content-inverse/80 hover:text-content-inverse hover:bg-white/10 rounded-xl transition">
           <X class="w-6 h-6" />
         </button>
       </div>

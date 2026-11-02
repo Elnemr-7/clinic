@@ -161,47 +161,76 @@ const accentStyles = computed(() => {
 </script>
 
 <template>
-  <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xl text-right" dir="rtl">
-    <!-- Success State with Activation Deep-link -->
-    <div v-if="bookingResult" class="text-center py-6 space-y-5">
-      <div class="inline-flex p-4 bg-emerald-50 text-emerald-600 rounded-3xl border border-emerald-100">
-        <CheckCircle2 class="w-12 h-12" />
-      </div>
+  <div class="bg-surface-card rounded-3xl p-6 sm:p-8 border border-line-subtle shadow-xl text-right" dir="rtl">
+    <!-- Success State: High-End Digital Queue Ticket UI -->
+    <div v-if="bookingResult" class="py-2 space-y-6">
+      <div class="bg-surface-app border border-line-subtle rounded-3xl overflow-hidden shadow-md">
+        <!-- Ticket Header -->
+        <div class="bg-brand text-content-inverse p-5 text-center relative">
+          <div class="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-2">
+            <CheckCircle2 class="w-7 h-7 text-white" />
+          </div>
+          <span class="text-xs font-semibold uppercase tracking-wider text-brand-subtle">تذكرة الحجز الإلكتروني المباشر</span>
+          <h3 class="text-xl font-bold mt-0.5">{{ tenant.clinic_name || tenant.name }}</h3>
+        </div>
 
-      <div class="space-y-1">
-        <span class="text-xs font-bold text-emerald-600">تم تسجيل حجزك بنجاح!</span>
-        <h3 class="text-2xl font-black text-slate-900">رقم دورك في الطابور: #{{ bookingResult.queue_number }}</h3>
-        <p class="text-sm text-slate-500 font-mono">كود الحجز المرجعي: #{{ bookingResult.reference_code }}</p>
-      </div>
+        <!-- Ticket Body: Big Queue Number -->
+        <div class="p-6 text-center space-y-4">
+          <div>
+            <span class="text-xs font-bold text-content-muted">رقم دورك في الكشف</span>
+            <div class="text-5xl font-black text-brand font-mono tabular-nums tracking-tight mt-1">
+              #{{ bookingResult.queue_number }}
+            </div>
+            <p class="text-xs text-content-secondary font-mono mt-1">كود الحجز المرجعي: <span class="font-bold text-content-primary">#{{ bookingResult.reference_code }}</span></p>
+          </div>
 
-      <!-- Time Window -->
-      <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl max-w-sm mx-auto space-y-1">
-        <p class="text-xs text-slate-500">النافذة الزمنية التقديرية لوصولك:</p>
-        <p class="text-base font-extrabold text-slate-800 font-mono" dir="ltr">
-          {{ bookingResult.estimated_window_start }} - {{ bookingResult.estimated_window_end }}
-        </p>
-        <p class="text-xs text-slate-600 font-medium">التكلفة المستحقة: {{ bookingResult.amount_due }} ج.م</p>
-      </div>
+          <!-- Tear / Perforation Line -->
+          <div class="relative py-2">
+            <div class="border-t-2 border-dashed border-line-subtle"></div>
+            <div class="absolute -right-9 -top-1 w-6 h-6 rounded-full bg-surface-card"></div>
+            <div class="absolute -left-9 -top-1 w-6 h-6 rounded-full bg-surface-card"></div>
+          </div>
 
-      <!-- WhatsApp Activation Button -->
-      <div v-if="bookingResult.whatsapp_activation_url" class="pt-2">
-        <a
-          :href="bookingResult.whatsapp_activation_url"
-          target="_blank"
-          class="inline-flex items-center gap-2 px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition active:scale-95"
-        >
-          <MessageSquare class="w-4 h-4" />
-          <span>تأكيد الحجز وتفعيل إشعارات الواتساب</span>
-        </a>
-      </div>
+          <!-- Time Window & Details Strip -->
+          <div class="grid grid-cols-2 gap-3 text-right">
+            <div class="p-3 bg-surface-elevated/40 rounded-xl border border-line-subtle">
+              <span class="text-[11px] text-content-muted block mb-0.5">النافذة التقديرية للوصول:</span>
+              <span class="text-xs font-black text-content-primary font-mono tabular-nums" dir="ltr">
+                {{ bookingResult.estimated_window_start }} - {{ bookingResult.estimated_window_end }}
+              </span>
+            </div>
+            <div class="p-3 bg-surface-elevated/40 rounded-xl border border-line-subtle">
+              <span class="text-[11px] text-content-muted block mb-0.5">المبلغ المستحق بالعيادة:</span>
+              <span class="text-xs font-black text-content-primary font-mono tabular-nums">
+                {{ bookingResult.amount_due }} ج.م
+              </span>
+            </div>
+          </div>
+        </div>
 
-      <div class="pt-2">
-        <nuxt-link
-          :to="`/track/${bookingResult.reference_code}`"
-          class="text-xs text-cyan-600 hover:underline font-bold"
-        >
-          متابعة حالة دورك في الطابور المباشر لحظة بلحظة ←
-        </nuxt-link>
+        <!-- Ticket Footer: WhatsApp & Live Track -->
+        <div class="p-5 bg-surface-elevated/20 border-t border-line-subtle space-y-3">
+          <div v-if="bookingResult.whatsapp_activation_url">
+            <a
+              :href="bookingResult.whatsapp_activation_url"
+              target="_blank"
+              class="w-full inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-status-success hover:opacity-90 text-white rounded-2xl font-bold text-xs sm:text-sm shadow-md transition active:scale-95"
+            >
+              <MessageSquare class="w-4 h-4" />
+              <span>تفعيل إشعارات الواتساب وتأكيد الموعد</span>
+            </a>
+          </div>
+
+          <div class="text-center pt-1">
+            <nuxt-link
+              :to="`/track/${bookingResult.reference_code}`"
+              class="text-xs text-brand hover:underline font-bold inline-flex items-center gap-1"
+            >
+              <span>متابعة حالة دورك بالعيادة لحظة بلحظة</span>
+              <span>←</span>
+            </nuxt-link>
+          </div>
+        </div>
       </div>
     </div>
 

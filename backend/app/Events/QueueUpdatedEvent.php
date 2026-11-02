@@ -26,6 +26,23 @@ class QueueUpdatedEvent implements ShouldBroadcastNow
 
         $clinic = Clinic::find($clinicId);
         $this->tvCode = $clinic?->tv_screen_code;
+
+        // Dispatch broadcast to JS-server Socket.io for ReceptionDesk & TV Screens
+        try {
+            $serviceUrl = config('services.whatsapp.service_url', 'http://127.0.0.1:3000');
+            $secret = config('services.whatsapp.secret');
+            \Illuminate\Support\Facades\Http::timeout(1)->withHeaders([
+                'X-Shared-Secret' => $secret,
+            ])->post("{$serviceUrl}/internal/broadcast-queue", [
+                'clinic_id' => $this->clinicId,
+                'tv_code' => $this->tvCode,
+                'shift_id' => $this->shiftId,
+                'date' => $this->date,
+                'event' => 'queue:updated',
+            ]);
+        } catch (\Throwable $e) {
+            // Non-blocking fallback
+        }
     }
 
     public function broadcastOn(): array

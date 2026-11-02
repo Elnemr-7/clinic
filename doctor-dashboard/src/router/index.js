@@ -2,24 +2,41 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
 import LoginView from '../views/LoginView.vue';
+import WaitingRoomTvView from '../views/WaitingRoomTvView.vue';
+import AppShellLayout from '../components/layout/AppShellLayout.vue';
 import DoctorWorkspaceView from '../views/DoctorWorkspaceView.vue';
 import ReceptionDeskView from '../views/ReceptionDeskView.vue';
-import WaitingRoomTvView from '../views/WaitingRoomTvView.vue';
+import SettingsLayoutView from '../views/settings/SettingsLayoutView.vue';
 import ClinicalSettingsView from '../views/settings/ClinicalSettingsView.vue';
 import ClinicBranchesView from '../views/settings/ClinicBranchesView.vue';
 import ReceptionistsView from '../views/settings/ReceptionistsView.vue';
 import WebsiteSettingsView from '../views/settings/WebsiteSettingsView.vue';
 
 const routes = [
-  { path: '/', redirect: '/workspace' },
   { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
   { path: '/tv/:tv_screen_code', name: 'tv', component: WaitingRoomTvView, meta: { public: true } },
-  { path: '/workspace', name: 'workspace', component: DoctorWorkspaceView, meta: { requiresAuth: true, role: 'doctor' } },
-  { path: '/reception', name: 'reception', component: ReceptionDeskView, meta: { requiresAuth: true } },
-  { path: '/settings/clinical', name: 'settings-clinical', component: ClinicalSettingsView, meta: { requiresAuth: true, role: 'doctor' } },
-  { path: '/settings/branches', name: 'settings-branches', component: ClinicBranchesView, meta: { requiresAuth: true, role: 'doctor' } },
-  { path: '/settings/receptionists', name: 'settings-receptionists', component: ReceptionistsView, meta: { requiresAuth: true, role: 'doctor' } },
-  { path: '/settings/website', name: 'settings-website', component: WebsiteSettingsView, meta: { requiresAuth: true, role: 'doctor' } },
+  {
+    path: '/',
+    component: AppShellLayout,
+    meta: { requiresAuth: true },
+    children: [
+      { path: '', redirect: '/workspace' },
+      { path: 'workspace', name: 'workspace', component: DoctorWorkspaceView, meta: { role: 'doctor' } },
+      { path: 'reception', name: 'reception', component: ReceptionDeskView },
+      {
+        path: 'settings',
+        component: SettingsLayoutView,
+        meta: { role: 'doctor' },
+        children: [
+          { path: '', redirect: '/settings/clinical' },
+          { path: 'clinical', name: 'settings-clinical', component: ClinicalSettingsView },
+          { path: 'branches', name: 'settings-branches', component: ClinicBranchesView },
+          { path: 'receptionists', name: 'settings-receptionists', component: ReceptionistsView },
+          { path: 'website', name: 'settings-website', component: WebsiteSettingsView },
+        ],
+      },
+    ],
+  },
   { path: '/:pathMatch(.*)*', redirect: '/login' },
 ];
 
@@ -41,7 +58,6 @@ router.beforeEach(async (to, from, next) => {
     authStore.isImpersonating = true;
     try {
       await authStore.fetchProfile();
-      // Clean query parameter from URL
       return next({ path: '/workspace', replace: true });
     } catch (e) {
       console.error('Failed impersonation handshake', e);

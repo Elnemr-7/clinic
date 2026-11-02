@@ -12,10 +12,12 @@ use App\Models\ClinicShift;
 use App\Models\Patient;
 use App\Services\FollowupDetectorService;
 use App\Services\QueueTimeCalculatorService;
+use App\Support\PhoneNormalizer;
 use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ReceptionController extends Controller
@@ -59,7 +61,8 @@ class ReceptionController extends Controller
         ]);
 
         $tenantId = $request->user()->tenant_id;
-        $result = $this->followupService->checkEligibility($tenantId, (int)$request->clinic_id, $request->phone);
+        $normalizedPhone = PhoneNormalizer::normalizeEgyptianPhone($request->phone);
+        $result = $this->followupService->checkEligibility($tenantId, (int)$request->clinic_id, $normalizedPhone);
 
         return $this->successResponse($result);
     }
@@ -83,81 +86,85 @@ class ReceptionController extends Controller
 
         $tenantId = $request->user()->tenant_id;
         $clinic = Clinic::findOrFail($request->clinic_id);
+        $normalizedPhone = PhoneNormalizer::normalizeEgyptianPhone($request->phone);
 
-        // Find or create patient
-        $cleanPhone = preg_replace('/[^0-9]/', '', $request->phone);
-        $patient = Patient::firstOrCreate(
-            ['tenant_id' => $tenantId, 'phone' => $request->phone],
-            [
-                'name' => $request->name,
-                'gender' => $request->gender ?? 'male',
-                'birth_year' => $request->age ? (date('Y') - (int)$request->age) : null,
-            ]
-        );
+        return DB::transaction(function () use ($request, $clinic, $tenantId, $normalizedPhone) {
+            // Find or create patient with canonical Egyptian format
+            $patient = Patient::firstOrCreate(
+                ['tenant_id' => $tenantId, 'phone' => $normalizedPhone],
+                [
+                    'name' => $request->name,
+                    'gender' => $request->gender ?? 'male',
+                    'birth_year' => $request->age ? (date('Y') - (int)$request->age) : null,
+                ]
+            );
 
-        // Resolve Shift
-        $dayOfWeek = Carbon::today()->dayOfWeek;
-        $shiftId = $request->shift_id;
-        if (!$shiftId) {
-            $shift = $clinic->shifts()->where('day_of_week', $dayOfWeek)->where('is_active', true)->first();
-            $shiftId = $shift?->id;
-        } else {
-            $shift = ClinicShift::find($shiftId);
-        }
+            // Resolve Shift with pessimistic lock
+            $dayOfWeek = Carbon::today()->dayOfWeek;
+            $shiftId = $request->shift_id;
+            if (!$shiftId) {
+                $shift = $clinic->shifts()->where('day_of_week', $dayOfWeek)->where('is_active', true)->lockForUpdate()->first();
+            } else {
+                $shift = ClinicShift::where('id', $shiftId)->lockForUpdate()->first();
+            }
 
-        if (!$shift) {
-            return $this->errorResponse('لا توجد فترات عمل متاحة اليوم لهذا الفرع');
-        }
+            if (!$shift) {
+                return $this->errorResponse('لا توجد فترات عمل متاحة اليوم لهذا الفرع');
+            }
 
-        // Auto followup detection
-        $followupCheck = $this->followupService->checkEligibility($tenantId, $clinic->id, $request->phone);
-        $visitType = $request->input('visit_type');
+            // Auto followup detection
+            $followupCheck = $this->followupService->checkEligibility($tenantId, $clinic->id, $normalizedPhone);
+            $visitType = $request->input('visit_type');
 
-        if (!$visitType) {
-            $visitType = $followupCheck['eligible'] ? 'followup' : 'new_visit';
-        }
+            if (!$visitType) {
+                $visitType = $followupCheck['eligible'] ? 'followup' : 'new_visit';
+            }
 
-        $fee = ($visitType === 'followup')
-            ? (float)$clinic->followup_price
-            : (float)$clinic->consultation_price;
+            $fee = ($visitType === 'followup')
+                ? (float)$clinic->followup_price
+                : (float)$clinic->consultation_price;
 
-        // Next queue number
-        $queueNumber = Appointment::where('clinic_id', $clinic->id)
-            ->where('shift_id', $shift->id)
-            ->whereDate('appointment_date', today())
-            ->max('queue_number') + 1;
+            // Next queue number with lockForUpdate to prevent race collision
+            $maxQueue = Appointment::where('clinic_id', $clinic->id)
+                ->where('shift_id', $shift->id)
+                ->whereDate('appointment_date', today())
+                ->lockForUpdate()
+                ->max('queue_number') ?? 0;
 
-        $windows = $this->queueService->calculateInitialWindow($shift, $clinic, $queueNumber, today());
-        $refCode = 'CLN-' . strtoupper(Str::random(5));
+            $queueNumber = $maxQueue + 1;
 
-        $appointment = Appointment::create([
-            'tenant_id' => $tenantId,
-            'clinic_id' => $clinic->id,
-            'shift_id' => $shift->id,
-            'patient_id' => $patient->id,
-            'appointment_date' => today(),
-            'queue_number' => $queueNumber,
-            'reference_code' => $refCode,
-            'booking_source' => 'clinic_desk',
-            'visit_type' => $visitType,
-            'status' => 'booked',
-            'estimated_window_start' => $windows['estimated_window_start'],
-            'estimated_window_end' => $windows['estimated_window_end'],
-            'consultation_fee' => $fee,
-            'total_amount' => $fee,
-            'is_paid' => false,
-        ]);
+            $windows = $this->queueService->calculateInitialWindow($shift, $clinic, $queueNumber, today());
+            $refCode = 'CLN-' . strtoupper(Str::random(5));
 
-        event(new QueueUpdatedEvent($clinic->id, $shift->id, today()->toDateString()));
+            $appointment = Appointment::create([
+                'tenant_id' => $tenantId,
+                'clinic_id' => $clinic->id,
+                'shift_id' => $shift->id,
+                'patient_id' => $patient->id,
+                'appointment_date' => today(),
+                'queue_number' => $queueNumber,
+                'reference_code' => $refCode,
+                'booking_source' => 'clinic_desk',
+                'visit_type' => $visitType,
+                'status' => 'booked',
+                'estimated_window_start' => $windows['estimated_window_start'],
+                'estimated_window_end' => $windows['estimated_window_end'],
+                'consultation_fee' => $fee,
+                'total_amount' => $fee,
+                'is_paid' => false,
+            ]);
 
-        return $this->successResponse([
-            'appointment' => $appointment->load('patient'),
-            'reference_code' => $refCode,
-            'queue_number' => $queueNumber,
-            'estimated_window_start' => $windows['estimated_window_start'],
-            'estimated_window_end' => $windows['estimated_window_end'],
-            'is_followup' => $visitType === 'followup',
-        ], 'تم تسجيل الحجز بنجاح');
+            event(new QueueUpdatedEvent($clinic->id, $shift->id, today()->toDateString()));
+
+            return $this->successResponse([
+                'appointment' => $appointment->load('patient'),
+                'reference_code' => $refCode,
+                'queue_number' => $queueNumber,
+                'estimated_window_start' => $windows['estimated_window_start'],
+                'estimated_window_end' => $windows['estimated_window_end'],
+                'is_followup' => $visitType === 'followup',
+            ], 'تم تسجيل الحجز بنجاح');
+        });
     }
 
     public function updateStatus(int $appointmentId, Request $request): JsonResponse
@@ -167,51 +174,53 @@ class ReceptionController extends Controller
             'mark_paid' => 'nullable|boolean',
         ]);
 
-        $appointment = Appointment::findOrFail($appointmentId);
-        $oldStatus = $appointment->status;
-        $newStatus = $request->status;
+        return DB::transaction(function () use ($appointmentId, $request) {
+            $appointment = Appointment::where('id', $appointmentId)->lockForUpdate()->firstOrFail();
+            $oldStatus = $appointment->status;
+            $newStatus = $request->status;
 
-        $appointment->status = $newStatus;
+            $appointment->status = $newStatus;
 
-        if ($request->boolean('mark_paid') || $newStatus === 'arrived_waiting') {
-            if (!$appointment->is_paid) {
-                $appointment->is_paid = true;
+            if ($request->boolean('mark_paid') || $newStatus === 'arrived_waiting') {
+                if (!$appointment->is_paid) {
+                    $appointment->is_paid = true;
 
-                // Log into cashbox
-                CashTransaction::create([
-                    'tenant_id' => $appointment->tenant_id,
-                    'clinic_id' => $appointment->clinic_id,
-                    'appointment_id' => $appointment->id,
-                    'created_by_user_id' => $request->user()->id,
-                    'type' => 'income',
-                    'category' => $appointment->visit_type === 'followup' ? 'followup' : 'consultation',
-                    'amount' => $appointment->consultation_fee,
-                    'description_ar' => "تحصيل كشف المريض: {$appointment->patient->name} (رقم #{$appointment->queue_number})",
-                    'transaction_date' => today(),
-                ]);
+                    // Log into cashbox
+                    CashTransaction::create([
+                        'tenant_id' => $appointment->tenant_id,
+                        'clinic_id' => $appointment->clinic_id,
+                        'appointment_id' => $appointment->id,
+                        'created_by_user_id' => $request->user()->id,
+                        'type' => 'income',
+                        'category' => $appointment->visit_type === 'followup' ? 'followup' : 'consultation',
+                        'amount' => $appointment->consultation_fee,
+                        'description_ar' => "تحصيل كشف المريض: {$appointment->patient->name} (رقم #{$appointment->queue_number})",
+                        'transaction_date' => today(),
+                    ]);
+                }
             }
-        }
 
-        if ($newStatus === 'in_consultation') {
-            $appointment->actual_entered_at = now();
-        } elseif ($newStatus === 'completed') {
-            $appointment->actual_completed_at = now();
-        }
+            if ($newStatus === 'in_consultation') {
+                $appointment->actual_entered_at = now();
+            } elseif ($newStatus === 'completed') {
+                $appointment->actual_completed_at = now();
+            }
 
-        $appointment->save();
+            $appointment->save();
 
-        // Recalculate remaining queue
-        $this->queueService->recalculateQueueOnStatusChange(
-            $appointment->clinic,
-            $appointment->shift,
-            $appointment->appointment_date,
-            $appointment->queue_number
-        );
+            // Recalculate remaining queue
+            $this->queueService->recalculateQueueOnStatusChange(
+                $appointment->clinic,
+                $appointment->shift,
+                $appointment->appointment_date,
+                $appointment->queue_number
+            );
 
-        // Turn alerts
-        dispatch(new CheckNearTurnNotificationsJob($appointment->clinic_id, $appointment->shift_id, $appointment->appointment_date->toDateString()));
+            // Turn alerts
+            dispatch(new CheckNearTurnNotificationsJob($appointment->clinic_id, $appointment->shift_id, $appointment->appointment_date->toDateString()));
 
-        return $this->successResponse($appointment, 'تم تحديث حالة المريض بنجاح');
+            return $this->successResponse($appointment, 'تم تحديث حالة المريض بنجاح');
+        });
     }
 
     public function collectExtraServices(int $appointmentId, Request $request): JsonResponse

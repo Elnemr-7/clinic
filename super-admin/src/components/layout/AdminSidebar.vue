@@ -1,20 +1,24 @@
 <template>
-  <aside class="w-64 bg-slate-950 border-l border-slate-800 flex flex-col min-h-screen">
-    <div class="p-6 border-b border-slate-800 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xl border border-emerald-500/30">
+  <aside class="w-64 bg-surface-header border-l border-line-subtle flex flex-col h-screen sticky top-0 select-none font-sans" dir="rtl">
+    <!-- Brand Header -->
+    <div class="h-16 px-5 border-b border-line-subtle flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-brand-subtle text-brand border border-brand-border flex items-center justify-center font-bold text-lg shadow-xs">
         🩺
       </div>
       <div>
-        <h1 class="font-bold text-lg text-white">المنصة الطبية</h1>
-        <p class="text-xs text-slate-400">لوحة التحكم السحابية</p>
+        <h1 class="font-extrabold text-sm text-content-primary leading-tight">المنصة الطبية</h1>
+        <p class="text-[11px] text-content-muted">لوحة التحكم السحابية</p>
       </div>
     </div>
 
-    <nav class="flex-1 p-4 space-y-1.5">
+    <!-- Navigation Links -->
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
       <router-link
         to="/"
-        class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all"
-        :class="$route.name === 'dashboard' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+        class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all"
+        :class="$route.name === 'dashboard'
+          ? 'bg-brand text-content-inverse shadow-xs'
+          : 'text-content-secondary hover:text-content-primary hover:bg-surface-elevated'"
       >
         <span>📊</span>
         <span>لوحة الإحصائيات العامة</span>
@@ -22,17 +26,21 @@
 
       <router-link
         to="/doctors"
-        class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all"
-        :class="$route.name === 'doctors' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+        class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all"
+        :class="$route.name === 'doctors'
+          ? 'bg-brand text-content-inverse shadow-xs'
+          : 'text-content-secondary hover:text-content-primary hover:bg-surface-elevated'"
       >
         <span>👨‍⚕️</span>
-        <span>إدارة الأطباء والعيادات</span>
+        <span>إدارة الأطباء (God-Mode)</span>
       </router-link>
 
       <router-link
         to="/leads"
-        class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all"
-        :class="$route.name === 'leads' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+        class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all"
+        :class="$route.name === 'leads'
+          ? 'bg-brand text-content-inverse shadow-xs'
+          : 'text-content-secondary hover:text-content-primary hover:bg-surface-elevated'"
       >
         <span>📥</span>
         <span>طلبات الاشتراك (Leads)</span>
@@ -40,29 +48,35 @@
 
       <router-link
         to="/plans"
-        class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all"
-        :class="$route.name === 'plans' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+        class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all"
+        :class="$route.name === 'plans'
+          ? 'bg-brand text-content-inverse shadow-xs'
+          : 'text-content-secondary hover:text-content-primary hover:bg-surface-elevated'"
       >
-        <span>💳</span>
+        <span>💎</span>
         <span>الباقات والأسعار</span>
       </router-link>
 
       <router-link
         to="/topups"
-        class="flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-all"
-        :class="$route.name === 'topups' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/30' : 'text-slate-400 hover:text-white hover:bg-slate-900'"
+        class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all"
+        :class="$route.name === 'topups'
+          ? 'bg-brand text-content-inverse shadow-xs'
+          : 'text-content-secondary hover:text-content-primary hover:bg-surface-elevated'"
       >
-        <span>💰</span>
-        <span>شحن الرصيد وفوري</span>
+        <span>💳</span>
+        <span>شحن المحافظ وفوري</span>
       </router-link>
     </nav>
 
-    <div class="p-4 border-t border-slate-800">
+    <!-- Admin Profile & Logout -->
+    <div class="p-3 border-t border-line-subtle">
       <button
-        @click="logout"
-        class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 font-medium text-sm transition"
+        type="button"
+        @click="handleLogout"
+        class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-status-danger hover:bg-status-danger-bg text-xs font-bold transition-all cursor-pointer"
       >
-        <span>🚪</span>
+        <LogOut class="w-4 h-4" />
         <span>تسجيل الخروج</span>
       </button>
     </div>
@@ -70,13 +84,14 @@
 </template>
 
 <script setup>
-import { useAuthStore } from '../../stores/auth';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '../../stores/auth';
+import { LogOut } from 'lucide-vue-next';
 
-const authStore = useAuthStore();
 const router = useRouter();
+const authStore = useAuthStore();
 
-const logout = () => {
+const handleLogout = () => {
   authStore.logout();
   router.push('/login');
 };

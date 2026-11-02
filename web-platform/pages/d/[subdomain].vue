@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useClinicBooking } from '../../composables/useClinicBooking';
 
@@ -13,19 +13,20 @@ import TemplateOrthopedics from '../../components/templates/TemplateOrthopedics.
 const route = useRoute();
 const { resolveTenant } = useClinicBooking();
 
-const subdomain = route.params.subdomain;
-const doctorTenant = ref(null);
-const loading = ref(true);
-const error = ref(null);
+const subdomain = computed(() => String(route.params.subdomain || ''));
 
-onMounted(async () => {
-  try {
-    doctorTenant.value = await resolveTenant(null, subdomain);
-  } catch (e) {
-    error.value = 'لم يتم العثور على عيادة بهذا الرابط';
-  } finally {
-    loading.value = false;
-  }
+// SSR Tenant resolution
+const { data: doctorTenant, error } = await useAsyncData(`tenant-subdomain-${subdomain.value}`, async () => {
+  if (!subdomain.value) return null;
+  return await resolveTenant(null, subdomain.value);
+});
+
+// Dynamic SEO & OpenGraph tags
+useSeoMeta({
+  title: () => doctorTenant.value ? `${doctorTenant.value.clinic_name || doctorTenant.value.name || 'عيادة تخصصية'} | حجز موعد إلكتروني` : 'العيادة غير موجودة | عيادتي',
+  description: () => doctorTenant.value?.bio || doctorTenant.value?.specialty_title || 'احجز موعدك وتتبع دورك في صالة الانتظار مباشرة عبر الهاتف.',
+  ogTitle: () => doctorTenant.value ? `${doctorTenant.value.clinic_name || doctorTenant.value.name}` : 'عيادتي الذكية',
+  ogDescription: () => doctorTenant.value?.bio || 'حجز موعد إلكتروني وتتبع الدور المباشر',
 });
 
 const getTemplateComponent = (specialty) => {
@@ -40,20 +41,21 @@ const getTemplateComponent = (specialty) => {
 </script>
 
 <template>
-  <div>
-    <div v-if="loading" class="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 text-xs font-bold" dir="rtl">
-      جارٍ تحميل بيانات العيادة...
-    </div>
-
-    <div v-else-if="error" class="min-h-screen flex flex-col items-center justify-center bg-slate-50 text-center p-6" dir="rtl">
-      <h2 class="text-xl font-bold text-slate-800 mb-2">{{ error }}</h2>
-      <p class="text-xs text-slate-400 mb-4">يرجى التأكد من صحة الرابط</p>
-      <nuxt-link to="/" class="px-5 py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold">
-        العودة للصفحة الرئيسية
+  <div class="min-h-screen bg-surface-app text-content-primary">
+    <!-- Clean Arabic 404 Fallback -->
+    <div v-if="error || !doctorTenant" class="min-h-screen flex flex-col items-center justify-center p-6 text-center" dir="rtl">
+      <div class="w-16 h-16 bg-status-danger-bg text-status-danger border border-status-danger-border rounded-2xl flex items-center justify-center text-2xl font-bold mb-4 shadow-sm">
+        ⚠️
+      </div>
+      <h2 class="text-2xl font-bold text-content-primary mb-2">لم يتم العثور على العيادة المطلوبة</h2>
+      <p class="text-sm text-content-muted mb-6 max-w-md">الرابط الذي قمت بفتحه غير صحيح أو قد تم نقل العيادة إلى نطاق آخر. يرجى التأكد من كتابة الرابط بشكل سليم.</p>
+      <nuxt-link to="/" class="px-6 py-3 bg-brand text-content-inverse hover:bg-brand-hover rounded-xl text-xs font-bold transition shadow-sm">
+        العودة لبوابة المنصة الرئيسية
       </nuxt-link>
     </div>
 
-    <div v-else-if="doctorTenant">
+    <!-- Active Doctor Specialty Template -->
+    <div v-else>
       <component
         :is="getTemplateComponent(doctorTenant.specialty_key || doctorTenant.template_key || doctorTenant.title_ar || doctorTenant.medical_specialty)"
         :tenant="doctorTenant"

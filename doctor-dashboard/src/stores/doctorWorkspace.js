@@ -15,8 +15,8 @@ export const useDoctorWorkspaceStore = defineStore('doctorWorkspace', {
     selectedClinicId: null,
   }),
   actions: {
-    async fetchCurrentPatient(clinicId = null) {
-      this.loading = true;
+    async fetchCurrentPatient(clinicId = null, silent = false) {
+      if (!silent) this.loading = true;
       try {
         const params = {};
         if (clinicId || this.selectedClinicId) {
@@ -28,7 +28,7 @@ export const useDoctorWorkspaceStore = defineStore('doctorWorkspace', {
         this.previousVitals = data.previous_vitals;
         this.counts = data.counts;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
     async savePrescription(appointmentId, payload) {

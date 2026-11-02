@@ -1,7 +1,1 @@
-@import "tailwindcss";
-
-@layer base {
-  body {
-    font-family: 'Cairo', system-ui, -apple-system, sans-serif;
-  }
-}
+@import "./theme.css";

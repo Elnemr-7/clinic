@@ -21,6 +21,7 @@ use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DoctorWorkspaceController extends Controller
@@ -253,94 +254,99 @@ class DoctorWorkspaceController extends Controller
         $tenantId = $request->user()->tenant_id;
         $clinicId = $request->input('clinic_id');
 
-        $current = Appointment::where('tenant_id', $tenantId)
-            ->where('status', 'in_consultation')
-            ->whereDate('appointment_date', today())
-            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-            ->first();
+        return DB::transaction(function () use ($tenantId, $clinicId) {
+            $current = Appointment::where('tenant_id', $tenantId)
+                ->where('status', 'in_consultation')
+                ->whereDate('appointment_date', today())
+                ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->lockForUpdate()
+                ->first();
 
-        if ($current) {
-            $current->update([
-                'status' => 'completed',
-                'actual_completed_at' => now(),
-            ]);
+            if ($current) {
+                $current->update([
+                    'status' => 'completed',
+                    'actual_completed_at' => now(),
+                ]);
 
-            // Auto-create followup appointment if date was specified
-            if ($current->consultation && $current->consultation->followup_date) {
-                $targetDate = $current->consultation->followup_date;
-                $dayOfWeek = $targetDate->dayOfWeek;
+                // Auto-create followup appointment if date was specified
+                if ($current->consultation && $current->consultation->followup_date) {
+                    $targetDate = $current->consultation->followup_date;
+                    $dayOfWeek = $targetDate->dayOfWeek;
 
-                $shift = $current->clinic->shifts()->where('day_of_week', $dayOfWeek)->where('is_active', true)->first();
+                    $shift = $current->clinic->shifts()->where('day_of_week', $dayOfWeek)->where('is_active', true)->lockForUpdate()->first();
+                    if ($shift) {
+                        $nextQueue = Appointment::where('clinic_id', $current->clinic_id)
+                            ->where('shift_id', $shift->id)
+                            ->whereDate('appointment_date', $targetDate)
+                            ->lockForUpdate()
+                            ->max('queue_number') + 1;
+
+                        $windows = $this->queueService->calculateInitialWindow($shift, $current->clinic, $nextQueue, $targetDate);
+
+                        Appointment::create([
+                            'tenant_id' => $tenantId,
+                            'clinic_id' => $current->clinic_id,
+                            'shift_id' => $shift->id,
+                            'patient_id' => $current->patient_id,
+                            'appointment_date' => $targetDate,
+                            'queue_number' => $nextQueue,
+                            'reference_code' => 'CLN-' . strtoupper(Str::random(5)),
+                            'booking_source' => 'clinic_desk',
+                            'visit_type' => 'followup',
+                            'status' => 'booked',
+                            'estimated_window_start' => $windows['estimated_window_start'],
+                            'estimated_window_end' => $windows['estimated_window_end'],
+                            'consultation_fee' => $current->clinic->followup_price,
+                            'total_amount' => $current->clinic->followup_price,
+                        ]);
+                    }
+                }
+
+                event(new ConsultationFinishedEvent($current->consultation ?? new Consultation()));
+            }
+
+            // Pull next patient in queue (supports arrived_waiting, waiting, or booked for today) with row lock
+            $nextPatient = Appointment::where('tenant_id', $tenantId)
+                ->whereIn('status', ['arrived_waiting', 'waiting', 'booked'])
+                ->whereDate('appointment_date', today())
+                ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->orderByRaw("CASE WHEN status = 'arrived_waiting' THEN 1 WHEN status = 'waiting' THEN 2 ELSE 3 END")
+                ->orderBy('queue_number', 'asc')
+                ->lockForUpdate()
+                ->first();
+
+            if ($nextPatient) {
+                $nextPatient->update([
+                    'status' => 'in_consultation',
+                    'actual_entered_at' => now(),
+                ]);
+
+                // Recalculate queue time for remaining patients
+                $this->queueService->recalculateQueueOnStatusChange(
+                    $nextPatient->clinic,
+                    $nextPatient->shift,
+                    today(),
+                    $nextPatient->queue_number
+                );
+
+                // Trigger turn notifications
+                dispatch(new CheckNearTurnNotificationsJob($nextPatient->clinic_id, $nextPatient->shift_id, today()->toDateString()));
+            }
+
+            $activeClinicId = $clinicId ?? $current?->clinic_id ?? $nextPatient?->clinic_id;
+            if ($activeClinicId) {
+                $activeClinic = Clinic::find($activeClinicId);
+                $shift = $nextPatient?->shift ?? $current?->shift ?? $activeClinic?->shifts()->first();
                 if ($shift) {
-                    $nextQueue = Appointment::where('clinic_id', $current->clinic_id)
-                        ->where('shift_id', $shift->id)
-                        ->whereDate('appointment_date', $targetDate)
-                        ->max('queue_number') + 1;
-
-                    $windows = $this->queueService->calculateInitialWindow($shift, $current->clinic, $nextQueue, $targetDate);
-
-                    Appointment::create([
-                        'tenant_id' => $tenantId,
-                        'clinic_id' => $current->clinic_id,
-                        'shift_id' => $shift->id,
-                        'patient_id' => $current->patient_id,
-                        'appointment_date' => $targetDate,
-                        'queue_number' => $nextQueue,
-                        'reference_code' => 'CLN-' . strtoupper(Str::random(5)),
-                        'booking_source' => 'clinic_desk',
-                        'visit_type' => 'followup',
-                        'status' => 'booked',
-                        'estimated_window_start' => $windows['estimated_window_start'],
-                        'estimated_window_end' => $windows['estimated_window_end'],
-                        'consultation_fee' => $current->clinic->followup_price,
-                        'total_amount' => $current->clinic->followup_price,
-                    ]);
+                    event(new QueueUpdatedEvent($activeClinicId, $shift->id, today()->toDateString()));
                 }
             }
 
-            event(new ConsultationFinishedEvent($current->consultation ?? new Consultation()));
-        }
-
-        // Pull next patient in queue (supports arrived_waiting, waiting, or booked for today)
-        $nextPatient = Appointment::where('tenant_id', $tenantId)
-            ->whereIn('status', ['arrived_waiting', 'waiting', 'booked'])
-            ->whereDate('appointment_date', today())
-            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-            ->orderByRaw("CASE WHEN status = 'arrived_waiting' THEN 1 WHEN status = 'waiting' THEN 2 ELSE 3 END")
-            ->orderBy('queue_number', 'asc')
-            ->first();
-
-        if ($nextPatient) {
-            $nextPatient->update([
-                'status' => 'in_consultation',
-                'actual_entered_at' => now(),
-            ]);
-
-            // Recalculate queue time for remaining patients
-            $this->queueService->recalculateQueueOnStatusChange(
-                $nextPatient->clinic,
-                $nextPatient->shift,
-                today(),
-                $nextPatient->queue_number
-            );
-
-            // Trigger turn notifications
-            dispatch(new CheckNearTurnNotificationsJob($nextPatient->clinic_id, $nextPatient->shift_id, today()->toDateString()));
-        }
-
-        $activeClinicId = $clinicId ?? $current?->clinic_id ?? $nextPatient?->clinic_id;
-        if ($activeClinicId) {
-            $activeClinic = Clinic::find($activeClinicId);
-            $shift = $nextPatient?->shift ?? $current?->shift ?? $activeClinic?->shifts()->first();
-            if ($shift) {
-                event(new QueueUpdatedEvent($activeClinicId, $shift->id, today()->toDateString()));
-            }
-        }
-
-        return $this->successResponse([
-            'completed_appointment' => $current,
-            'next_patient' => $nextPatient?->load(['patient', 'clinic']),
-        ], 'تم إنهاء الكشف وإدخال المريض التالي بنجاح');
+            return $this->successResponse([
+                'completed_appointment' => $current,
+                'next_patient' => $nextPatient?->load(['patient', 'clinic']),
+            ], 'تم إنهاء الكشف وإدخال المريض التالي بنجاح');
+        });
     }
 
     public function previousVisits(int $patientId, Request $request): JsonResponse

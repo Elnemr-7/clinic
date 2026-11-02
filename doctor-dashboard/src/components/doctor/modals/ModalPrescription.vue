@@ -141,6 +141,22 @@ const selectSuggestion = (index, item) => {
   activeDrugIndex.value = null;
 };
 
+const isDirty = () => {
+  if (diagnosis.value && diagnosis.value.trim().length > 0) return true;
+  if (symptoms.value && symptoms.value.trim().length > 0) return true;
+  if (drugs.value.some(d => d.drug_name && d.drug_name.trim().length > 0)) return true;
+  return false;
+};
+
+const handleSafeClose = () => {
+  if (isDirty()) {
+    if (!confirm('لديك تعديلات غير محفوظة في الروشتة. هل أنت متأكد من الإغلاق وفقدان البيانات؟')) {
+      return;
+    }
+  }
+  emit('close');
+};
+
 const handleSave = async (actionType = 'save') => {
   if (!props.appointment) return;
 
@@ -195,56 +211,56 @@ const handleSave = async (actionType = 'save') => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-right" dir="rtl">
+  <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-right" dir="rtl">
       <!-- Modal Header -->
-      <div class="px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+      <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="p-2 bg-white/10 rounded-xl">
             <span class="text-2xl">💊</span>
           </div>
           <div>
             <h3 class="text-xl font-bold">الروشتة والعلاج الدوائي</h3>
-            <p class="text-xs text-emerald-100 font-medium">المريض: {{ appointment?.patient?.name }} (كود: #{{ appointment?.reference_code }})</p>
+            <p class="text-xs text-brand-subtle/80 font-medium">المريض: {{ appointment?.patient?.name }} (كود: #{{ appointment?.reference_code }})</p>
           </div>
         </div>
-        <button @click="$emit('close')" class="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition">
+        <button @click="handleSafeClose" class="p-2 text-content-inverse/80 hover:text-content-inverse hover:bg-white/10 rounded-xl transition">
           <X class="w-6 h-6" />
         </button>
       </div>
 
       <!-- Modal Body -->
-      <div class="p-6 overflow-y-auto space-y-6 flex-1">
+      <div class="p-6 overflow-y-auto space-y-6 flex-1 bg-surface-app">
         <!-- Diagnosis and Symptoms -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-1">الشكوى / الأعراض (Symptoms)</label>
+            <label class="block text-sm font-semibold text-content-primary mb-1">الشكوى / الأعراض (Symptoms)</label>
             <input
               v-model="symptoms"
               type="text"
               placeholder="مثال: صداع نصفي، ارتفاع درجة الحرارة..."
-              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 text-sm"
+              class="w-full px-4 py-2.5 rounded-xl border border-line-strong bg-surface-input text-content-primary focus:ring-2 focus:ring-brand text-sm"
             />
           </div>
           <div>
-            <label class="block text-sm font-semibold text-slate-700 mb-1">التشخيص النهائي (Diagnosis)</label>
+            <label class="block text-sm font-semibold text-content-primary mb-1">التشخيص النهائي (Diagnosis)</label>
             <input
               v-model="diagnosis"
               type="text"
               placeholder="مثال: التهاب الشعب الهوائية الحاد..."
-              class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 text-sm"
+              class="w-full px-4 py-2.5 rounded-xl border border-line-strong bg-surface-input text-content-primary focus:ring-2 focus:ring-brand text-sm"
             />
           </div>
         </div>
 
         <!-- Template Selector Bar -->
-        <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <Sparkles class="w-5 h-5 text-amber-500" />
-          <span class="text-xs font-semibold text-slate-700">تطبيق قالب روشتة جاهز:</span>
+        <div class="flex items-center gap-3 bg-surface-card p-3 rounded-xl border border-line-subtle">
+          <Sparkles class="w-5 h-5 text-status-warning" />
+          <span class="text-xs font-semibold text-content-secondary">تطبيق قالب روشتة جاهز:</span>
           <select
             v-model="selectedTemplateId"
             @change="applyTemplate"
-            class="flex-1 px-3 py-1.5 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500"
+            class="flex-1 px-3 py-1.5 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
           >
             <option value="">-- اختر قالباً لإضافته سريعاً --</option>
             <option v-for="tpl in templates" :key="tpl.id" :value="tpl.id">
@@ -256,14 +272,14 @@ const handleSave = async (actionType = 'save') => {
         <!-- Smart Drug Rows -->
         <div>
           <div class="flex items-center justify-between mb-3">
-            <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <h4 class="text-sm font-bold text-content-primary flex items-center gap-2">
               <span>قائمة الأدوية الموصوفة</span>
-              <span class="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-800 rounded-full font-mono">{{ drugs.length }}</span>
+              <span class="px-2 py-0.5 text-xs bg-brand-subtle text-brand font-bold rounded-full font-mono">{{ drugs.length }}</span>
             </h4>
             <button
               @click="addDrug"
               type="button"
-              class="px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg flex items-center gap-1 transition"
+              class="px-3 py-1.5 text-xs font-semibold bg-brand-subtle text-brand hover:opacity-90 rounded-lg flex items-center gap-1 transition"
             >
               <Plus class="w-4 h-4" />
               إضافة دواء جديد
@@ -274,83 +290,83 @@ const handleSave = async (actionType = 'save') => {
             <div
               v-for="(drug, idx) in drugs"
               :key="idx"
-              class="relative bg-slate-50 border border-slate-200 p-3 rounded-xl grid grid-cols-12 gap-2 items-center"
+              class="relative bg-surface-card border border-line-subtle p-3 rounded-xl grid grid-cols-12 gap-2 items-center"
             >
               <!-- Drug Name with Autocomplete -->
               <div class="col-span-12 md:col-span-4 relative">
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">اسم الدواء</label>
+                <label class="block text-[11px] font-semibold text-content-muted mb-1">اسم الدواء</label>
                 <input
                   v-model="drug.drug_name"
                   @input="onDrugInput(idx, drug.drug_name)"
                   type="text"
                   placeholder="ابحث أو اكتب دواء جديداً..."
-                  class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500"
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
                 />
                 <!-- Autocomplete Dropdown -->
                 <div
                   v-if="activeDrugIndex === idx && drugSuggestions.length > 0"
-                  class="absolute top-full right-0 left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto"
+                  class="absolute top-full right-0 left-0 mt-1 bg-surface-card border border-line-subtle rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto"
                 >
                   <div
                     v-for="sug in drugSuggestions"
                     :key="sug.id"
                     @click="selectSuggestion(idx, sug)"
-                    class="p-2 hover:bg-emerald-50 cursor-pointer border-b border-slate-100 last:border-none text-right"
+                    class="p-2 hover:bg-surface-elevated cursor-pointer border-b border-line-subtle last:border-none text-right"
                   >
-                    <p class="text-xs font-bold text-slate-800">{{ sug.name }}</p>
-                    <p class="text-[10px] text-slate-400">{{ sug.default_dosage || '' }} - {{ sug.default_frequency || '' }}</p>
+                    <p class="text-xs font-bold text-content-primary">{{ sug.name }}</p>
+                    <p class="text-[10px] text-content-muted">{{ sug.default_dosage || '' }} - {{ sug.default_frequency || '' }}</p>
                   </div>
                 </div>
               </div>
 
               <!-- Dosage -->
               <div class="col-span-6 md:col-span-2">
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">الجرعة</label>
+                <label class="block text-[11px] font-semibold text-content-muted mb-1">الجرعة</label>
                 <input
                   v-model="drug.dosage"
                   type="text"
                   placeholder="500 mg"
-                  class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500"
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
                 />
               </div>
 
               <!-- Frequency -->
               <div class="col-span-6 md:col-span-2">
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">التكرار</label>
+                <label class="block text-[11px] font-semibold text-content-muted mb-1">التكرار</label>
                 <input
                   v-model="drug.frequency"
                   type="text"
                   placeholder="كل 8 ساعات"
-                  class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500"
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
                 />
               </div>
 
               <!-- Duration -->
               <div class="col-span-6 md:col-span-2">
-                <label class="block text-[11px] font-semibold text-slate-500 mb-1">المدة</label>
+                <label class="block text-[11px] font-semibold text-content-muted mb-1">المدة</label>
                 <input
                   v-model="drug.duration"
                   type="text"
                   placeholder="5 أيام"
-                  class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500"
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
                 />
               </div>
 
               <!-- Instructions & Delete -->
               <div class="col-span-6 md:col-span-2 flex items-end gap-1">
                 <div class="flex-1">
-                  <label class="block text-[11px] font-semibold text-slate-500 mb-1">تعليمات</label>
+                  <label class="block text-[11px] font-semibold text-content-muted mb-1">تعليمات</label>
                   <input
                     v-model="drug.instructions"
                     type="text"
                     placeholder="بعد الأكل"
-                    class="w-full px-2 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500"
+                    class="w-full px-2 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
                   />
                 </div>
                 <button
                   @click="removeDrug(idx)"
                   type="button"
-                  class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition mb-0.5"
+                  class="p-2 text-status-danger hover:bg-status-danger-bg rounded-lg transition mb-0.5"
                   title="حذف السطر"
                 >
                   <Trash2 class="w-4 h-4" />
@@ -362,22 +378,22 @@ const handleSave = async (actionType = 'save') => {
 
         <!-- Doctor Private Notes -->
         <div>
-          <label class="block text-sm font-semibold text-slate-700 mb-1">ملاحظات سرية للطبيب (لا تظهر في الروشتة المطبوعة للمريض)</label>
+          <label class="block text-sm font-semibold text-content-primary mb-1">ملاحظات سرية للطبيب (لا تظهر في الروشتة المطبوعة للمريض)</label>
           <textarea
             v-model="privateNotes"
             rows="2"
             placeholder="ملاحظات متابعة سرية، شكوك سريرية، أو توجيهات داخلية خاصة..."
-            class="w-full px-4 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 text-xs"
+            class="w-full px-4 py-2 rounded-xl border border-line-subtle bg-surface-input text-content-primary focus:ring-2 focus:ring-brand text-xs"
           ></textarea>
         </div>
       </div>
 
       <!-- Modal Footer with Action Buttons -->
-      <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+      <div class="px-6 py-4 bg-surface-card border-t border-line-subtle flex flex-wrap items-center justify-between gap-3">
         <button
-          @click="$emit('close')"
+          @click="handleSafeClose"
           type="button"
-          class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-xl transition"
+          class="px-4 py-2 text-xs font-semibold text-content-secondary hover:bg-surface-elevated rounded-xl transition"
         >
           إلغاء وإغلاق
         </button>
@@ -387,7 +403,7 @@ const handleSave = async (actionType = 'save') => {
             @click="handleSave('save')"
             :disabled="saving"
             type="button"
-            class="px-4 py-2.5 text-xs font-bold bg-slate-800 text-white hover:bg-slate-900 rounded-xl flex items-center gap-2 transition disabled:opacity-50"
+            class="px-4 py-2.5 text-xs font-bold bg-surface-elevated text-content-primary hover:bg-line-strong rounded-xl flex items-center gap-2 transition disabled:opacity-50"
           >
             <Save class="w-4 h-4" />
             <span>حفظ فقط</span>
@@ -397,7 +413,7 @@ const handleSave = async (actionType = 'save') => {
             @click="handleSave('print')"
             :disabled="saving"
             type="button"
-            class="px-4 py-2.5 text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 rounded-xl flex items-center gap-2 transition disabled:opacity-50 shadow-md shadow-blue-500/20"
+            class="px-4 py-2.5 text-xs font-bold bg-status-info text-white hover:opacity-90 rounded-xl flex items-center gap-2 transition disabled:opacity-50"
           >
             <Printer class="w-4 h-4" />
             <span>حفظ وطباعة (PDF)</span>
@@ -407,7 +423,7 @@ const handleSave = async (actionType = 'save') => {
             @click="handleSave('whatsapp')"
             :disabled="saving"
             type="button"
-            class="px-4 py-2.5 text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl flex items-center gap-2 transition disabled:opacity-50 shadow-md shadow-emerald-500/20"
+            class="px-4 py-2.5 text-xs font-bold bg-brand text-content-inverse hover:bg-brand-hover rounded-xl flex items-center gap-2 transition disabled:opacity-50 shadow-md"
           >
             <Send class="w-4 h-4" />
             <span>حفظ وإرسال واتساب</span>

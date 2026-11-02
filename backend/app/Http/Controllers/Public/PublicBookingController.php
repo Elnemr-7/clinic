@@ -13,10 +13,12 @@ use App\Models\Tenant;
 use App\Scopes\TenantScope;
 use App\Services\FollowupDetectorService;
 use App\Services\QueueTimeCalculatorService;
+use App\Support\PhoneNormalizer;
 use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class PublicBookingController extends Controller
@@ -90,7 +92,8 @@ class PublicBookingController extends Controller
         ]);
 
         $clinic = Clinic::withoutGlobalScope(TenantScope::class)->findOrFail($request->clinic_id);
-        $result = $this->followupService->checkEligibility($clinic->tenant_id, $clinic->id, $request->phone);
+        $normalizedPhone = PhoneNormalizer::normalizeEgyptianPhone($request->phone);
+        $result = $this->followupService->checkEligibility($clinic->tenant_id, $clinic->id, $normalizedPhone);
 
         return $this->successResponse($result);
     }
@@ -114,8 +117,8 @@ class PublicBookingController extends Controller
             'age' => 'nullable|integer',
         ]);
 
+        $normalizedPhone = PhoneNormalizer::normalizeEgyptianPhone($request->phone);
         $clinic = Clinic::withoutGlobalScope(TenantScope::class)->findOrFail($request->clinic_id);
-        $shift = ClinicShift::withoutGlobalScope(TenantScope::class)->findOrFail($request->shift_id);
         $date = Carbon::parse($request->date);
 
         // Check if date is in clinic_days_off
@@ -124,75 +127,109 @@ class PublicBookingController extends Controller
             return $this->errorResponse("عذراً، العيادة مغلقة في هذا التاريخ نظراً لـ: {$dayOff->reason_ar}");
         }
 
-        // Check max patients on shift
-        $currentBookingsCount = Appointment::withoutGlobalScope(TenantScope::class)
+        // Duplicate Same-Day Booking Guard
+        $existingActive = Appointment::withoutGlobalScope(TenantScope::class)
             ->where('clinic_id', $clinic->id)
-            ->where('shift_id', $shift->id)
-            ->whereDate('appointment_date', $date)
-            ->count();
+            ->whereDate('appointment_date', $date->toDateString())
+            ->whereIn('status', ['booked', 'pending_payment', 'arrived_waiting', 'in_consultation'])
+            ->whereHas('patient', function ($q) use ($normalizedPhone) {
+                $q->where('phone', $normalizedPhone);
+            })
+            ->first();
 
-        if ($shift->max_patients && $currentBookingsCount >= $shift->max_patients) {
-            return $this->errorResponse('عذراً، اكتمل العدد الأقصى للحجوزات في هذه الفترة، يرجى اختيار موعد آخر');
+        if ($existingActive) {
+            return $this->errorResponse(
+                "لديك حجز مسجل بالفعل في هذا اليوم برقم الدور #{$existingActive->queue_number} (كود #{$existingActive->reference_code})",
+                ['existing_appointment' => $existingActive],
+                422
+            );
         }
 
-        // Find or create patient
-        $patient = Patient::withoutGlobalScope(TenantScope::class)->firstOrCreate(
-            ['tenant_id' => $clinic->tenant_id, 'phone' => $request->phone],
-            [
-                'name' => $request->patient_name,
-                'gender' => $request->gender ?? 'male',
-                'birth_year' => $request->age ? (date('Y') - (int)$request->age) : null,
-            ]
-        );
+        return DB::transaction(function () use ($request, $clinic, $date, $normalizedPhone) {
+            // Lock shift row to avoid concurrent race conditions on queue numbering
+            $shift = ClinicShift::withoutGlobalScope(TenantScope::class)
+                ->where('id', $request->shift_id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Followup Eligibility Check
-        $followupCheck = $this->followupService->checkEligibility($clinic->tenant_id, $clinic->id, $request->phone);
-        $visitType = $followupCheck['eligible'] ? 'followup' : 'new_visit';
-        $fee = ($visitType === 'followup') ? (float)$clinic->followup_price : (float)$clinic->consultation_price;
+            // Check max patients on shift with row lock
+            $currentBookingsCount = Appointment::withoutGlobalScope(TenantScope::class)
+                ->where('clinic_id', $clinic->id)
+                ->where('shift_id', $shift->id)
+                ->whereDate('appointment_date', $date->toDateString())
+                ->lockForUpdate()
+                ->count();
 
-        $queueNumber = $currentBookingsCount + 1;
-        $windows = $this->queueService->calculateInitialWindow($shift, $clinic, $queueNumber, $date);
-        $refCode = 'CLN-' . strtoupper(Str::random(5));
+            if ($shift->max_patients && $currentBookingsCount >= $shift->max_patients) {
+                return $this->errorResponse('عذراً، اكتمل العدد الأقصى للحجوزات في هذه الفترة، يرجى اختيار موعد آخر');
+            }
 
-        $status = ($clinic->booking_payment_mode === 'require_prepayment') ? 'pending_payment' : 'booked';
+            // Find or create patient with canonical normalized phone
+            $patient = Patient::withoutGlobalScope(TenantScope::class)->firstOrCreate(
+                ['tenant_id' => $clinic->tenant_id, 'phone' => $normalizedPhone],
+                [
+                    'name' => $request->patient_name,
+                    'gender' => $request->gender ?? 'male',
+                    'birth_year' => $request->age ? (date('Y') - (int)$request->age) : null,
+                ]
+            );
 
-        $appointment = Appointment::withoutGlobalScope(TenantScope::class)->create([
-            'tenant_id' => $clinic->tenant_id,
-            'clinic_id' => $clinic->id,
-            'shift_id' => $shift->id,
-            'patient_id' => $patient->id,
-            'appointment_date' => $date,
-            'queue_number' => $queueNumber,
-            'reference_code' => $refCode,
-            'booking_source' => 'online',
-            'visit_type' => $visitType,
-            'status' => $status,
-            'estimated_window_start' => $windows['estimated_window_start'],
-            'estimated_window_end' => $windows['estimated_window_end'],
-            'consultation_fee' => $fee,
-            'total_amount' => $fee,
-            'is_paid' => false,
-        ]);
+            // Followup Eligibility Check
+            $followupCheck = $this->followupService->checkEligibility($clinic->tenant_id, $clinic->id, $normalizedPhone);
+            $visitType = $followupCheck['eligible'] ? 'followup' : 'new_visit';
+            $fee = ($visitType === 'followup') ? (float)$clinic->followup_price : (float)$clinic->consultation_price;
 
-        event(new QueueUpdatedEvent($clinic->id, $shift->id, $date->toDateString()));
+            $maxQueue = Appointment::withoutGlobalScope(TenantScope::class)
+                ->where('clinic_id', $clinic->id)
+                ->where('shift_id', $shift->id)
+                ->whereDate('appointment_date', $date->toDateString())
+                ->lockForUpdate()
+                ->max('queue_number') ?? 0;
 
-        // WhatsApp Inbound Activation Deep-link
-        $tenant = $clinic->tenant;
-        $waPhone = preg_replace('/[^0-9]/', '', $tenant->whatsapp_phone_number ?? '');
-        $waText = urlencode("تفعيل حجز رقم {$refCode}");
-        $waActivationUrl = !empty($waPhone) ? "https://wa.me/{$waPhone}?text={$waText}" : null;
+            $queueNumber = $maxQueue + 1;
+            $windows = $this->queueService->calculateInitialWindow($shift, $clinic, $queueNumber, $date);
+            $refCode = 'CLN-' . strtoupper(Str::random(5));
 
-        return $this->successResponse([
-            'queue_number' => $queueNumber,
-            'reference_code' => $refCode,
-            'estimated_window_start' => $windows['estimated_window_start'],
-            'estimated_window_end' => $windows['estimated_window_end'],
-            'visit_type' => $visitType,
-            'amount_due' => $fee,
-            'payment_instructions' => $clinic->prepayment_instructions_ar,
-            'whatsapp_activation_url' => $waActivationUrl,
-            'is_followup' => $visitType === 'followup',
-        ], 'تم تسجيل حجزك بنجاح!');
+            $status = ($clinic->booking_payment_mode === 'require_prepayment') ? 'pending_payment' : 'booked';
+
+            $appointment = Appointment::withoutGlobalScope(TenantScope::class)->create([
+                'tenant_id' => $clinic->tenant_id,
+                'clinic_id' => $clinic->id,
+                'shift_id' => $shift->id,
+                'patient_id' => $patient->id,
+                'appointment_date' => $date,
+                'queue_number' => $queueNumber,
+                'reference_code' => $refCode,
+                'booking_source' => 'online',
+                'visit_type' => $visitType,
+                'status' => $status,
+                'estimated_window_start' => $windows['estimated_window_start'],
+                'estimated_window_end' => $windows['estimated_window_end'],
+                'consultation_fee' => $fee,
+                'total_amount' => $fee,
+                'is_paid' => false,
+            ]);
+
+            event(new QueueUpdatedEvent($clinic->id, $shift->id, $date->toDateString()));
+
+            // WhatsApp Inbound Activation Deep-link
+            $tenant = $clinic->tenant;
+            $waPhone = preg_replace('/[^0-9]/', '', $tenant->whatsapp_phone_number ?? '');
+            $waText = urlencode("تفعيل حجز رقم {$refCode}");
+            $waActivationUrl = !empty($waPhone) ? "https://wa.me/{$waPhone}?text={$waText}" : null;
+
+            return $this->successResponse([
+                'queue_number' => $queueNumber,
+                'reference_code' => $refCode,
+                'estimated_window_start' => $windows['estimated_window_start'],
+                'estimated_window_end' => $windows['estimated_window_end'],
+                'visit_type' => $visitType,
+                'amount_due' => $fee,
+                'payment_instructions' => $clinic->prepayment_instructions_ar,
+                'whatsapp_activation_url' => $waActivationUrl,
+                'is_followup' => $visitType === 'followup',
+            ], 'تم تسجيل حجزك بنجاح!');
+        });
     }
 
     public function liveQueueStatus(string $referenceCode): JsonResponse

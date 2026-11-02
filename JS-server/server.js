@@ -3,6 +3,8 @@ require('dotenv').config();
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -137,6 +139,8 @@ app.post('/api/auth/token', (req, res) => {
 // In-memory active session registry
 // Key: sessionId (string) -> { sock, sessionId, businessId, webhookUrl, status, phoneNumber, qr, qrImage, lastActiveAt }
 const activeSessions = {};
+const reconnectAttempts = {};
+const RECONNECT_BACKOFF = [1000, 2000, 5000, 10000, 30000];
 
 /**
  * Resolve session folder path securely.
@@ -259,6 +263,7 @@ async function startSession(sessionId, meta = {}) {
             delete activeSessions[sessionId];
 
             if (!shouldReconnect) {
+                delete reconnectAttempts[sessionId];
                 console.log(`[Session ${sessionId}] User logged out. Cleaning up credentials.`);
                 if (fs.existsSync(sessionDir)) {
                     try {
@@ -274,16 +279,22 @@ async function startSession(sessionId, meta = {}) {
                     status: 'disconnected'
                 });
             } else {
-                // Exponential reconnect backoff
+                // Exponential reconnect backoff: 1s, 2s, 5s, 10s, 30s
+                const attempt = reconnectAttempts[sessionId] || 0;
+                const delay = RECONNECT_BACKOFF[Math.min(attempt, RECONNECT_BACKOFF.length - 1)];
+                reconnectAttempts[sessionId] = attempt + 1;
+
+                console.log(`[Session ${sessionId}] Scheduling reconnect attempt #${attempt + 1} in ${delay}ms...`);
                 setTimeout(() => {
                     startSession(sessionId, { businessId, webhookUrl })
                         .catch(err => console.error(`[Session ${sessionId}] Reconnect failed: ${err.message}`));
-                }, 4000);
+                }, delay);
             }
         }
 
         // 3. Connection open
         else if (connection === 'open') {
+            reconnectAttempts[sessionId] = 0;
             const rawJid = sock.user?.id || '';
             const formattedNumber = rawJid.split(':')[0] || rawJid.split('@')[0];
 
@@ -762,9 +773,59 @@ app.post('/api/cache/clear', (req, res) => {
     res.json({ status: 'ok', message: 'Cache flushed successfully' });
 });
 
-// Start HTTP Server
-const server = app.listen(PORT, () => {
-    console.log(`🚀 VERTEX WhatsApp Baileys Service running on port ${PORT}`);
+// Socket.io Real-time Queue & TV Broadcast Setup
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
+
+io.on('connection', (socket) => {
+    socket.on('join_clinic', (clinicId) => {
+        if (clinicId) socket.join(`clinic_${clinicId}`);
+    });
+
+    socket.on('join_tv', (tvCode) => {
+        if (tvCode) socket.join(`tv_${tvCode}`);
+    });
+
+    socket.on('join_track', (refCode) => {
+        if (refCode) socket.join(`track_${refCode}`);
+    });
+
+    socket.on('leave_clinic', (clinicId) => {
+        if (clinicId) socket.leave(`clinic_${clinicId}`);
+    });
+});
+
+// Internal Endpoint to broadcast queue updates from Laravel
+app.post(['/internal/broadcast-queue', '/api/internal/broadcast-queue'], (req, res) => {
+    const { clinic_id, clinicId, tv_code, tvScreenCode, reference_code, referenceCode, event, data, payload } = req.body || {};
+    
+    const cid = clinic_id || clinicId;
+    const tv = tv_code || tvScreenCode;
+    const ref = reference_code || referenceCode;
+    const evt = event || 'queue:updated';
+    const body = payload || data || req.body;
+
+    if (cid) {
+        io.to(`clinic_${cid}`).emit(evt, body);
+    }
+    if (tv) {
+        io.to(`tv_${tv}`).emit(evt, body);
+    }
+    if (ref) {
+        io.to(`track_${ref}`).emit(evt, body);
+    }
+
+    return res.json({ status: 'ok', broadcasted_to: { clinic: cid, tv, ref } });
+});
+
+// Start HTTP & WebSocket Server
+server.listen(PORT, () => {
+    console.log(`🚀 VERTEX WhatsApp Baileys & Socket.io Service running on port ${PORT}`);
     autoBootSessions();
 });
 
