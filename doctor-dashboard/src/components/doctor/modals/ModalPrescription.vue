@@ -211,7 +211,8 @@ const handleSave = async (actionType = 'save') => {
 </script>
 
 <template>
-  <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/70 backdrop-blur-sm flex items-center justify-center p-4">
+  <Teleport to="body">
+    <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden text-right" dir="rtl">
       <!-- Modal Header -->
       <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
@@ -432,4 +433,5 @@ const handleSave = async (actionType = 'save') => {
       </div>
     </div>
   </div>
+  </Teleport>
 </template>

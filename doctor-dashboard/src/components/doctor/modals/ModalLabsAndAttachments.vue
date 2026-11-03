@@ -158,243 +158,241 @@ const handleUploadAttachment = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/70 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden text-right" dir="rtl">
-      <!-- Modal Header -->
-      <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-white/10 rounded-xl">
-            <FlaskConical class="w-6 h-6" />
+  <Teleport to="body">
+    <div v-if="isOpen" @click.self="handleSafeClose" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden text-right text-content-primary" dir="rtl">
+        <!-- Modal Header -->
+        <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-white/10 rounded-xl">
+              <FlaskConical class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-xl font-bold">التحاليل، الأشعة، والمرفقات السريرية</h3>
+              <p class="text-xs text-brand-subtle/80 font-medium">المريض: {{ appointment?.patient?.name }}</p>
+            </div>
           </div>
-          <div>
-            <h3 class="text-xl font-bold">التحاليل، الأشعة، والمرفقات السريرية</h3>
-            <p class="text-xs text-brand-subtle/80 font-medium">المريض: {{ appointment?.patient?.name }}</p>
-          </div>
+          <button @click="handleSafeClose" class="p-2 text-content-inverse/80 hover:text-content-inverse hover:bg-white/10 rounded-xl transition cursor-pointer">
+            <X class="w-6 h-6" />
+          </button>
         </div>
-        <button @click="handleSafeClose" class="p-2 text-content-inverse/80 hover:text-content-inverse hover:bg-white/10 rounded-xl transition">
-          <X class="w-6 h-6" />
-        </button>
-      </div>
 
-      <!-- Tab Buttons -->
-      <div class="flex border-b border-line-subtle bg-surface-elevated/40 px-6 pt-3 gap-3">
-        <button
-          @click="activeTab = 'labs'"
-          :class="[
-            'pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition',
-            activeTab === 'labs'
-              ? 'border-brand text-brand'
-              : 'border-transparent text-content-muted hover:text-content-primary'
-          ]"
-        >
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          ]"
-        >
-          <FlaskConical class="w-4 h-4" />
-          طلب فحوصات وأشعة ({{ labRequests.length }})
-        </button>
+        <!-- Tab Buttons -->
+        <div class="flex border-b border-line-subtle bg-surface-elevated/40 px-6 pt-3 gap-3">
+          <button
+            @click="activeTab = 'labs'"
+            :class="[
+              'pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition cursor-pointer',
+              activeTab === 'labs'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-content-muted hover:text-content-primary'
+            ]"
+          >
+            <FlaskConical class="w-4 h-4" />
+            طلب فحوصات وأشعة ({{ labRequests.length }})
+          </button>
 
-        <button
-          @click="activeTab = 'attachments'"
-          :class="[
-            'pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition',
-            activeTab === 'attachments'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          ]"
-        >
-          <ImageIcon class="w-4 h-4" />
-          أرشيف المرفقات والتقارير ({{ attachments.length }})
-        </button>
-      </div>
+          <button
+            @click="activeTab = 'attachments'"
+            :class="[
+              'pb-3 px-4 font-bold text-sm border-b-2 flex items-center gap-2 transition cursor-pointer',
+              activeTab === 'attachments'
+                ? 'border-brand text-brand'
+                : 'border-transparent text-content-muted hover:text-content-primary'
+            ]"
+          >
+            <ImageIcon class="w-4 h-4" />
+            أرشيف المرفقات والتقارير ({{ attachments.length }})
+          </button>
+        </div>
 
-      <!-- Tab 1: Labs & Radiology -->
-      <div v-if="activeTab === 'labs'" class="p-6 overflow-y-auto space-y-5 flex-1">
-        <!-- Add Lab Row Box -->
-        <div class="bg-indigo-50/60 border border-indigo-100 p-4 rounded-xl space-y-3">
-          <label class="block text-xs font-bold text-indigo-950">إضافة فحص مخبري أو فحص أشعة جديد</label>
-          <div class="grid grid-cols-12 gap-2">
-            <div class="col-span-12 md:col-span-6 relative">
-              <input
-                v-model="labQuery"
-                @input="onLabSearch"
-                type="text"
-                placeholder="ابحث أو اكتب اسم الفحص (مثل: CBC, Pelvi-Abdominal US)..."
-                class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-              />
-              <div
-                v-if="labSuggestions.length > 0"
-                class="absolute top-full right-0 left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto"
-              >
+        <!-- Tab 1: Labs & Radiology -->
+        <div v-if="activeTab === 'labs'" class="p-6 overflow-y-auto space-y-5 flex-1 bg-surface-app">
+          <!-- Add Lab Row Box -->
+          <div class="bg-surface-card border border-line-subtle p-4 rounded-xl space-y-3">
+            <label class="block text-xs font-bold text-content-primary">إضافة فحص مخبري أو فحص أشعة جديد</label>
+            <div class="grid grid-cols-12 gap-2">
+              <div class="col-span-12 md:col-span-6 relative">
+                <input
+                  v-model="labQuery"
+                  @input="onLabSearch"
+                  type="text"
+                  placeholder="ابحث أو اكتب اسم الفحص (مثل: CBC, Pelvi-Abdominal US)..."
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
+                />
                 <div
-                  v-for="sug in labSuggestions"
-                  :key="sug.id"
-                  @click="addLabItem(sug.name, sug.category)"
-                  class="p-2 hover:bg-indigo-50 cursor-pointer border-b border-slate-100 last:border-none flex items-center justify-between"
+                  v-if="labSuggestions.length > 0"
+                  class="absolute top-full right-0 left-0 mt-1 bg-surface-card border border-line-subtle rounded-xl shadow-xl z-20 max-h-40 overflow-y-auto"
                 >
-                  <span class="text-xs font-bold text-slate-800">{{ sug.name }}</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">{{ sug.category === 'radiology' ? 'أشعة' : 'تحليل' }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-span-8 md:col-span-4">
-              <input
-                v-model="labInstructions"
-                type="text"
-                placeholder="تعليمات (مثل: صيام 12 ساعة)..."
-                class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div class="col-span-4 md:col-span-2">
-              <button
-                @click="addLabItem()"
-                type="button"
-                class="w-full py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition"
-              >
-                <Plus class="w-4 h-4" />
-                إضافة
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Selected Labs List -->
-        <div>
-          <h4 class="text-xs font-bold text-slate-500 mb-2">الفحوصات المطلوبة للمريض في هذه الزيارة:</h4>
-          <div v-if="labRequests.length === 0" class="text-center py-8 text-slate-400 text-xs border border-dashed rounded-xl">
-            لم يتم إضافة أي تحاليل أو فحوصات بعد
-          </div>
-
-          <div v-else class="space-y-2">
-            <div
-              v-for="(lab, idx) in labRequests"
-              :key="idx"
-              class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"
-            >
-              <div class="flex items-center gap-3">
-                <span class="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
-                  <FlaskConical class="w-4 h-4" />
-                </span>
-                <div>
-                  <p class="text-xs font-bold text-slate-800">{{ lab.test_name }}</p>
-                  <p v-if="lab.instructions" class="text-[11px] text-slate-500">ملاحظات: {{ lab.instructions }}</p>
+                  <div
+                    v-for="sug in labSuggestions"
+                    :key="sug.id"
+                    @click="addLabItem(sug.name, sug.category)"
+                    class="p-2 hover:bg-surface-elevated cursor-pointer border-b border-line-subtle last:border-none flex items-center justify-between"
+                  >
+                    <span class="text-xs font-bold text-content-primary">{{ sug.name }}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded bg-surface-elevated text-content-secondary border border-line-subtle">{{ sug.category === 'radiology' ? 'أشعة' : 'تحليل' }}</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="flex items-center gap-2">
-                <select
-                  v-model="lab.category"
-                  class="text-[11px] px-2 py-1 bg-white border border-slate-300 rounded-lg"
-                >
-                  <option value="lab">تحاليل طبية</option>
-                  <option value="radiology">أشعة وفحوصات تصويرية</option>
-                </select>
+              <div class="col-span-8 md:col-span-4">
+                <input
+                  v-model="labInstructions"
+                  type="text"
+                  placeholder="تعليمات (مثل: صيام 12 ساعة)..."
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle focus:ring-2 focus:ring-brand"
+                />
+              </div>
+
+              <div class="col-span-4 md:col-span-2">
                 <button
-                  @click="removeLabItem(idx)"
+                  @click="addLabItem()"
                   type="button"
-                  class="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"
+                  class="w-full py-2 bg-brand text-content-inverse hover:bg-brand-hover text-xs font-bold rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
                 >
-                  <Trash2 class="w-4 h-4" />
+                  <Plus class="w-4 h-4" />
+                  إضافة
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Tab 2: Attachments & Scans -->
-      <div v-if="activeTab === 'attachments'" class="p-6 overflow-y-auto space-y-6 flex-1">
-        <!-- Upload Form -->
-        <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-          <h4 class="text-xs font-bold text-slate-700">رفع فحص أو تقرير جديد (PDF / صورة)</h4>
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-            <div class="md:col-span-5">
-              <input
-                v-model="fileTitle"
-                type="text"
-                placeholder="عنوان المستند (مثال: رنين مغناطيسي 2026)"
-                class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300"
-              />
+          <!-- Selected Labs List -->
+          <div>
+            <h4 class="text-xs font-bold text-content-secondary mb-2">الفحوصات المطلوبة للمريض في هذه الزيارة:</h4>
+            <div v-if="labRequests.length === 0" class="text-center py-8 text-content-muted text-xs border border-dashed border-line-subtle rounded-xl">
+              لم يتم إضافة أي تحاليل أو فحوصات بعد
             </div>
-            <div class="md:col-span-5">
-              <input
-                @change="onFileSelected"
-                type="file"
-                accept="image/*,application/pdf"
-                class="w-full text-xs text-slate-500 file:mr-0 file:ml-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-              />
-            </div>
-            <div class="md:col-span-2">
-              <button
-                @click="handleUploadAttachment"
-                :disabled="!selectedFile || uploading"
-                type="button"
-                class="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-1"
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="(lab, idx) in labRequests"
+                :key="idx"
+                class="p-3 bg-surface-card border border-line-subtle rounded-xl flex items-center justify-between"
               >
-                <Upload class="w-4 h-4" />
-                <span>{{ uploading ? 'جارٍ الرفع...' : 'رفع' }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+                <div class="flex items-center gap-3">
+                  <span class="p-1.5 rounded-lg bg-brand-subtle text-brand border border-brand-border">
+                    <FlaskConical class="w-4 h-4" />
+                  </span>
+                  <div>
+                    <p class="text-xs font-bold text-content-primary">{{ lab.test_name }}</p>
+                    <p v-if="lab.instructions" class="text-[11px] text-content-muted">ملاحظات: {{ lab.instructions }}</p>
+                  </div>
+                </div>
 
-        <!-- Past Attachments Grid -->
-        <div>
-          <h4 class="text-xs font-bold text-slate-700 mb-3">المستندات والفحوصات المحفوظة للمريض:</h4>
-          <div v-if="attachments.length === 0" class="text-center py-8 text-slate-400 text-xs border border-dashed rounded-xl">
-            لا توجد مرفقات سابقة لهذا المريض
-          </div>
-
-          <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            <div
-              v-for="att in attachments"
-              :key="att.id"
-              class="p-3 bg-white border border-slate-200 rounded-xl hover:border-indigo-400 transition flex flex-col justify-between"
-            >
-              <div class="flex items-start gap-2 mb-3">
-                <FileText class="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                <div class="overflow-hidden">
-                  <p class="text-xs font-bold text-slate-800 truncate" :title="att.title">{{ att.title || 'مستند بدون عنوان' }}</p>
-                  <p class="text-[10px] text-slate-400">{{ att.created_at ? new Date(att.created_at).toLocaleDateString('ar-EG') : '' }}</p>
+                <div class="flex items-center gap-2">
+                  <select
+                    v-model="lab.category"
+                    class="text-[11px] px-2 py-1 bg-surface-input text-content-primary border border-line-subtle rounded-lg"
+                  >
+                    <option value="lab">تحاليل طبية</option>
+                    <option value="radiology">أشعة وفحوصات تصويرية</option>
+                  </select>
+                  <button
+                    @click="removeLabItem(idx)"
+                    type="button"
+                    class="p-1 text-status-danger hover:bg-status-danger-bg rounded transition cursor-pointer"
+                  >
+                    <Trash2 class="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-
-              <a
-                :href="att.file_url"
-                target="_blank"
-                class="w-full py-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-700 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition"
-              >
-                <ExternalLink class="w-3.5 h-3.5" />
-                عرض المستند
-              </a>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Modal Footer -->
-      <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-        <button
-          @click="$emit('close')"
-          type="button"
-          class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-xl transition"
-        >
-          إغلاق
-        </button>
+        <!-- Tab 2: Attachments & Scans -->
+        <div v-if="activeTab === 'attachments'" class="p-6 overflow-y-auto space-y-6 flex-1 bg-surface-app">
+          <!-- Upload Form -->
+          <div class="p-4 bg-surface-card border border-line-subtle rounded-xl space-y-3">
+            <h4 class="text-xs font-bold text-content-primary">رفع فحص أو تقرير جديد (PDF / صورة)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+              <div class="md:col-span-5">
+                <input
+                  v-model="fileTitle"
+                  type="text"
+                  placeholder="عنوان المستند (مثال: رنين مغناطيسي 2026)"
+                  class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle"
+                />
+              </div>
+              <div class="md:col-span-5">
+                <input
+                  @change="onFileSelected"
+                  type="file"
+                  accept="image/*,application/pdf"
+                  class="w-full text-xs text-content-secondary file:mr-0 file:ml-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-surface-elevated file:text-brand hover:file:bg-brand/10 cursor-pointer"
+                />
+              </div>
+              <div class="md:col-span-2">
+                <button
+                  @click="handleUploadAttachment"
+                  :disabled="!selectedFile || uploading"
+                  type="button"
+                  class="w-full py-2 bg-brand text-content-inverse rounded-lg text-xs font-bold hover:bg-brand-hover disabled:opacity-50 transition flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Upload class="w-4 h-4" />
+                  <span>{{ uploading ? 'جارٍ الرفع...' : 'رفع' }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
-        <button
-          v-if="activeTab === 'labs'"
-          @click="handleSaveLabs"
-          :disabled="saving"
-          type="button"
-          class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-md shadow-indigo-500/20"
-        >
-          {{ saving ? 'جارٍ الحفظ...' : 'حفظ الفحوصات المطلوبة' }}
-        </button>
+          <!-- Past Attachments Grid -->
+          <div>
+            <h4 class="text-xs font-bold text-content-primary mb-3">المستندات والفحوصات المحفوظة للمريض:</h4>
+            <div v-if="attachments.length === 0" class="text-center py-8 text-content-muted text-xs border border-dashed border-line-subtle rounded-xl">
+              لا توجد مرفقات سابقة لهذا المريض
+            </div>
+
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div
+                v-for="att in attachments"
+                :key="att.id"
+                class="p-3 bg-surface-card border border-line-subtle rounded-xl hover:border-brand/50 transition flex flex-col justify-between"
+              >
+                <div class="flex items-start gap-2 mb-3">
+                  <FileText class="w-5 h-5 text-brand shrink-0 mt-0.5" />
+                  <div class="overflow-hidden">
+                    <p class="text-xs font-bold text-content-primary truncate" :title="att.title">{{ att.title || 'مستند بدون عنوان' }}</p>
+                    <p class="text-[10px] text-content-muted font-mono">{{ att.created_at ? new Date(att.created_at).toLocaleDateString('ar-EG') : '' }}</p>
+                  </div>
+                </div>
+
+                <a
+                  :href="att.file_url"
+                  target="_blank"
+                  class="w-full py-1.5 bg-surface-elevated hover:bg-brand-subtle text-brand text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition"
+                >
+                  <ExternalLink class="w-3.5 h-3.5" />
+                  عرض المستند
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 bg-surface-card border-t border-line-subtle flex items-center justify-between">
+          <button
+            @click="$emit('close')"
+            type="button"
+            class="px-4 py-2 text-xs font-semibold text-content-secondary hover:bg-surface-elevated rounded-xl transition cursor-pointer"
+          >
+            إغلاق
+          </button>
+
+          <button
+            v-if="activeTab === 'labs'"
+            @click="handleSaveLabs"
+            :disabled="saving"
+            type="button"
+            class="px-5 py-2.5 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-md cursor-pointer"
+          >
+            {{ saving ? 'جارٍ الحفظ...' : 'حفظ الفحوصات المطلوبة' }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>

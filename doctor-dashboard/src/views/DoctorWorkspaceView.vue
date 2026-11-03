@@ -1,11 +1,11 @@
 <template>
-  <div class="h-full p-2.5 lg:p-3.5 overflow-hidden text-right select-none font-sans" dir="rtl">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full min-h-0 overflow-hidden">
+  <div class="max-w-[1600px] mx-auto w-full p-3 lg:p-5 pb-24 lg:pb-32 select-none text-right font-sans min-w-0" dir="rtl">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full items-start">
       
       <!-- ======================================================== -->
-      <!-- RIGHT SIDEBAR (3 Cols): Live Queue & Next Patient Rail  -->
+      <!-- RIGHT SIDEBAR (3-4 Cols): Live Queue & Next Patient Rail -->
       <!-- ======================================================== -->
-      <aside class="col-span-12 lg:col-span-3 h-full min-h-0 flex flex-col bg-surface-card border border-line-subtle rounded-2xl shadow-xs overflow-hidden">
+      <aside class="col-span-12 lg:col-span-4 xl:col-span-3 lg:sticky lg:top-3 flex flex-col bg-surface-card border border-line-subtle rounded-2xl shadow-xs overflow-hidden order-first">
         
         <!-- Rail Header: Current Patient in Room -->
         <div class="p-3.5 border-b border-line-subtle bg-surface-elevated/60">
@@ -38,7 +38,7 @@
         </div>
 
         <!-- Scrollable Middle Rail: Waiting Room & Postponed Lists -->
-        <div class="flex-1 overflow-y-auto p-3 space-y-3 divide-y divide-line-subtle">
+        <div class="max-h-[220px] xl:max-h-[340px] overflow-y-auto p-3 space-y-3 divide-y divide-line-subtle">
           <!-- Waiting List Section -->
           <div>
             <div class="flex items-center justify-between mb-2 px-1">
@@ -129,9 +129,9 @@
       </aside>
 
       <!-- ======================================================== -->
-      <!-- MAIN CONSULTATION COCKPIT (9 Cols): Zero-Scroll Cockpit   -->
+      <!-- MAIN CONSULTATION COCKPIT (8-9 Cols): Smooth Scroll      -->
       <!-- ======================================================== -->
-      <main class="col-span-12 lg:col-span-9 h-full min-h-0 flex flex-col gap-2 overflow-y-auto lg:overflow-hidden pr-0.5">
+      <div class="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col gap-3.5 min-w-0">
         
         <template v-if="workspaceStore.currentPatient">
           <!-- 1. Critical Medical Alert Bar -->
@@ -148,8 +148,8 @@
             :previous-vitals="workspaceStore.previousVitals"
           />
 
-          <!-- 3. THE 4 CLINICAL ACTION CARDS (2x2 Bento Grid - Equal Height) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 flex-1 min-h-0 items-stretch">
+          <!-- 3. THE 4 CLINICAL ACTION CARDS (2x2 Bento Grid) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
             
             <!-- CARD 1: Medical History (Alt+1) -->
             <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-3 shadow-xs flex flex-col justify-between transition-all">
@@ -356,7 +356,7 @@
           </button>
         </div>
 
-      </main>
+      </div>
     </div>
 
     <!-- Modals with dirty backdrop close guard -->
