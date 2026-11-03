@@ -8,6 +8,9 @@ use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class QueueUpdatedEvent implements ShouldBroadcastNow
 {
@@ -27,22 +30,31 @@ class QueueUpdatedEvent implements ShouldBroadcastNow
         $clinic = Clinic::find($clinicId);
         $this->tvCode = $clinic?->tv_screen_code;
 
-        // Dispatch broadcast to JS-server Socket.io for ReceptionDesk & TV Screens
-        try {
-            $serviceUrl = config('services.whatsapp.service_url', 'http://127.0.0.1:3000');
-            $secret = config('services.whatsapp.secret');
-            \Illuminate\Support\Facades\Http::timeout(1)->withHeaders([
-                'X-Shared-Secret' => $secret,
-            ])->post("{$serviceUrl}/internal/broadcast-queue", [
-                'clinic_id' => $this->clinicId,
-                'tv_code' => $this->tvCode,
-                'shift_id' => $this->shiftId,
-                'date' => $this->date,
-                'event' => 'queue:updated',
-            ]);
-        } catch (\Throwable $e) {
-            // Non-blocking fallback
-        }
+        $clinicIdVal = $this->clinicId;
+        $shiftIdVal = $this->shiftId;
+        $dateVal = $this->date;
+        $tvCodeVal = $this->tvCode;
+
+        // Dispatch broadcast to JS-server Socket.io after DB commit to avoid holding locks
+        DB::afterCommit(function () use ($clinicIdVal, $shiftIdVal, $dateVal, $tvCodeVal) {
+            try {
+                $serviceUrl = config('services.whatsapp.service_url', 'http://127.0.0.1:3000');
+                $secret = config('services.whatsapp.secret');
+                Http::timeout(2)->withHeaders([
+                    'X-Shared-Secret' => $secret,
+                    'X-Internal-Secret' => $secret,
+                ])->post("{$serviceUrl}/internal/broadcast-queue", [
+                    'clinic_id' => $clinicIdVal,
+                    'tv_code' => $tvCodeVal,
+                    'shift_id' => $shiftIdVal,
+                    'date' => $dateVal,
+                    'event' => 'queue:updated',
+                ]);
+            } catch (\Throwable $e) {
+                // Non-blocking fallback
+                Log::debug("QueueUpdatedEvent broadcast-queue non-blocking error: " . $e->getMessage());
+            }
+        });
     }
 
     public function broadcastOn(): array
@@ -60,6 +72,6 @@ class QueueUpdatedEvent implements ShouldBroadcastNow
 
     public function broadcastAs(): string
     {
-        return 'QueueUpdated';
+        return 'queue.updated';
     }
 }

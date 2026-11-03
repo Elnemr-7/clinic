@@ -34,6 +34,15 @@ export const useSettingsStore = defineStore('settings', {
         this.loading = false;
       }
     },
+    async fetchBranches() {
+      try {
+        const res = await client.get('/settings/branches');
+        this.branches = res.data.data;
+        return this.branches;
+      } catch (e) {
+        return [];
+      }
+    },
     async updateVitals(vitals) {
       await client.post('/settings/vitals', { vitals_config: vitals });
       await this.fetchAll();

@@ -55,6 +55,7 @@ class WhatsAppTokenService
             'Accept' => 'application/json',
             'X-Server-Token' => $token,
             'X-Shared-Secret' => $resolvedSecret,
+            'X-Internal-Secret' => $resolvedSecret,
             'Authorization' => "Bearer {$token}",
         ];
     }

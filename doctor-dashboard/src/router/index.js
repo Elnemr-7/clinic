@@ -48,19 +48,33 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
-  // Support ?impersonate_token in hash route query OR window.location.search
+  // Support ?impersonate_token in query, search, or hash
   const urlParams = new URLSearchParams(window.location.search);
-  const impersonateToken = to.query.impersonate_token || urlParams.get('impersonate_token');
+  let impersonateToken = to.query.impersonate_token || urlParams.get('impersonate_token');
+
+  if (!impersonateToken && window.location.hash) {
+    const rawHash = window.location.hash;
+    const queryPart = rawHash.includes('?') ? rawHash.split('?')[1] : rawHash.replace(/^#\/?/, '');
+    const hashParams = new URLSearchParams(queryPart);
+    impersonateToken = hashParams.get('impersonate_token');
+  }
 
   if (impersonateToken) {
-    localStorage.setItem('clinic_token', impersonateToken);
-    authStore.token = impersonateToken;
-    authStore.isImpersonating = true;
-    try {
-      await authStore.fetchProfile();
-      return next({ path: '/workspace', replace: true });
-    } catch (e) {
-      console.error('Failed impersonation handshake', e);
+    if (!authStore.user || authStore.token !== impersonateToken) {
+      authStore.setImpersonationToken(impersonateToken);
+      try {
+        await authStore.fetchProfile();
+      } catch (e) {
+        console.error('Failed impersonation handshake', e);
+      }
+    }
+
+    // Clean browser history URL so reload doesn't re-trigger with old token
+    window.history.replaceState(null, '', '/workspace');
+
+    // If navigation query still holds the token, redirect cleanly to /workspace without query
+    if (to.query.impersonate_token) {
+      return next({ path: '/workspace', query: {}, replace: true });
     }
   }
 

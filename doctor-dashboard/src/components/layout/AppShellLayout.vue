@@ -173,8 +173,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import ImpersonationBanner from '../common/ImpersonationBanner.vue';
+import { useClinicSocket } from '../../composables/useClinicSocket';
 import { useAuthStore } from '../../stores/auth';
 import { useSettingsStore } from '../../stores/settings';
 import { useDoctorWorkspaceStore } from '../../stores/doctorWorkspace';
@@ -296,24 +298,45 @@ const handleLogout = () => {
   router.push('/login');
 };
 
+const refreshQueueData = () => {
+  if (selectedClinicId.value) {
+    if (route.path.includes('/workspace')) {
+      workspaceStore.fetchCurrentPatient(selectedClinicId.value, true);
+    } else {
+      queueStore.fetchQueue(selectedClinicId.value, null, null, true);
+    }
+  }
+};
+
+const { initSocket, disconnect: disconnectSocket } = useClinicSocket(
+  selectedClinicId,
+  () => authStore.socketToken,
+  () => {
+    refreshQueueData();
+  }
+);
+
+watch(selectedClinicId, (newId) => {
+  if (newId) {
+    initSocket();
+  }
+});
+
 onMounted(async () => {
   theme.initTheme();
   if (branches.value.length > 0 && !selectedClinicId.value) {
     selectedClinicId.value = branches.value[0].id;
   }
-  // Periodically silent-fetch queue counts
+  initSocket();
+
+  // Fallback heartbeat poll every 60s
   liveTimer = setInterval(() => {
-    if (selectedClinicId.value) {
-      if (route.path.includes('/workspace')) {
-        workspaceStore.fetchCurrentPatient(selectedClinicId.value, true);
-      } else {
-        queueStore.fetchQueue(selectedClinicId.value, null, null, true);
-      }
-    }
-  }, 12000);
+    refreshQueueData();
+  }, 60000);
 });
 
 onUnmounted(() => {
   if (liveTimer) clearInterval(liveTimer);
+  disconnectSocket();
 });
 </script>

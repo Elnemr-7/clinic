@@ -1,56 +1,58 @@
-import axios from 'axios';
-
 export const useClinicBooking = () => {
   const config = useRuntimeConfig();
   const apiBase = config.public.apiBase || 'http://localhost:8000/api';
 
-  const client = axios.create({
+  const apiFetch = $fetch.create({
     baseURL: apiBase,
     headers: {
       'Accept': 'application/json',
-      'Content-Type': 'application/json',
     },
   });
 
-  const resolveTenant = async (host = null, subdomain = null) => {
-    const params = {};
+  const resolveTenant = async (host: string | null = null, subdomain: string | null = null) => {
+    const params: Record<string, string> = {};
     if (subdomain) params.subdomain = subdomain;
     if (host) params.host = host;
 
-    const res = await client.get('/public/tenant-by-host', { params });
-    return res.data.data;
+    const res: any = await apiFetch('/public/tenant-by-host', { params });
+    return res.data;
   };
 
   const fetchPlans = async () => {
-    const res = await client.get('/public/plans');
-    return res.data.data;
-  };
-
-  const submitLead = async (leadData) => {
-    // Correction 6: Public Lead endpoint
-    const res = await client.post('/public/leads', leadData);
+    const res: any = await apiFetch('/public/plans');
     return res.data;
   };
 
-  const checkFollowupEligibility = async (phone, clinicId) => {
-    const res = await client.get('/public/check-followup', {
+  const submitLead = async (leadData: any) => {
+    const res: any = await apiFetch('/public/leads', {
+      method: 'POST',
+      body: leadData,
+    });
+    return res;
+  };
+
+  const checkFollowupEligibility = async (phone: string, clinicId: number | string) => {
+    const res: any = await apiFetch('/public/check-followup', {
       params: { phone, clinic_id: clinicId },
     });
-    return res.data.data;
-  };
-
-  const submitBooking = async (bookingData) => {
-    const res = await client.post('/public/book-appointment', bookingData);
     return res.data;
   };
 
-  const fetchLiveQueueStatus = async (referenceCode) => {
-    const res = await client.get(`/public/live-queue/${referenceCode}`);
-    return res.data.data;
+  const submitBooking = async (bookingData: any) => {
+    const res: any = await apiFetch('/public/book-appointment', {
+      method: 'POST',
+      body: bookingData,
+    });
+    return res;
+  };
+
+  const fetchLiveQueueStatus = async (referenceCode: string) => {
+    const res: any = await apiFetch(`/public/live-queue/${referenceCode}`);
+    return res.data;
   };
 
   return {
-    client,
+    client: apiFetch,
     resolveTenant,
     fetchPlans,
     submitLead,

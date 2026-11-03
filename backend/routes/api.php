@@ -40,8 +40,10 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/leads/{id}/convert', [\App\Http\Controllers\SuperAdmin\DoctorLeadController::class, 'convert']);
 
         Route::get('/tenants', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'index']);
+        Route::post('/tenants', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'store']);
         Route::get('/tenants/{id}', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'show']);
         Route::put('/tenants/{id}', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'update']);
+        Route::delete('/tenants/{id}', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'destroy']);
         Route::put('/tenants/{id}/wallet', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'updateWallet']);
         Route::post('/tenants/{id}/impersonate', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'impersonate']);
 

@@ -38,7 +38,13 @@ class MemoryCache {
      * Store item in cache with optional TTL in seconds.
      * Default TTL: 300 seconds (5 minutes).
      */
-    set(key, value, ttlSeconds = 300) {
+    set(key, value, ttlSeconds = 300, maxKeys = 1000) {
+        if (this.store.size >= maxKeys && !this.store.has(key)) {
+            const oldestKey = this.store.keys().next().value;
+            if (oldestKey !== undefined) {
+                this.store.delete(oldestKey);
+            }
+        }
         const expiresAt = ttlSeconds ? Date.now() + (ttlSeconds * 1000) : null;
         this.store.set(key, { value, expiresAt });
     }
@@ -106,3 +112,5 @@ class MemoryCache {
 const cache = new MemoryCache();
 
 module.exports = cache;
+module.exports.MemoryCache = MemoryCache;
+

@@ -95,11 +95,24 @@ class WhatsAppChannelService
 
             if ($response->successful()) {
                 $sent = true;
+            } else {
+                if (app()->environment('local') && config('services.whatsapp.simulate_on_local', false)) {
+                    $sent = true;
+                } else {
+                    $sent = false;
+                    $tenant->increment('whatsapp_balance', 1);
+                    $tenant->decrement('whatsapp_used_this_month', 1);
+                }
             }
         } catch (\Throwable $e) {
-            Log::warning("WhatsApp send message error: {$e->getMessage()} - using simulation mode");
-            // If offline, still count as simulated success in local dev
-            $sent = true;
+            Log::warning("WhatsApp send message error: {$e->getMessage()}");
+            if (app()->environment('local') && config('services.whatsapp.simulate_on_local', false)) {
+                $sent = true;
+            } else {
+                $sent = false;
+                $tenant->increment('whatsapp_balance', 1);
+                $tenant->decrement('whatsapp_used_this_month', 1);
+            }
         }
 
         $this->walletService->logMessage($tenant->id, $appointmentId, 'whatsapp', $phone, $type, $text, $sent ? 'sent' : 'failed');
@@ -141,10 +154,24 @@ class WhatsAppChannelService
 
             if ($response->successful()) {
                 $sent = true;
+            } else {
+                if (app()->environment('local') && config('services.whatsapp.simulate_on_local', false)) {
+                    $sent = true;
+                } else {
+                    $sent = false;
+                    $tenant->increment('whatsapp_balance', 1);
+                    $tenant->decrement('whatsapp_used_this_month', 1);
+                }
             }
         } catch (\Throwable $e) {
             Log::warning("WhatsApp send prescription PDF error: {$e->getMessage()}");
-            $sent = true; // simulation mode fallback
+            if (app()->environment('local') && config('services.whatsapp.simulate_on_local', false)) {
+                $sent = true;
+            } else {
+                $sent = false;
+                $tenant->increment('whatsapp_balance', 1);
+                $tenant->decrement('whatsapp_used_this_month', 1);
+            }
         }
 
         $this->walletService->logMessage($tenant->id, $appointmentId, 'whatsapp', $phone, 'prescription_link', $caption, $sent ? 'sent' : 'failed');

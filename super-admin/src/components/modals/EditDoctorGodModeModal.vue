@@ -122,7 +122,16 @@
         <div v-if="currentTab === 'domain'" class="space-y-4">
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-2">الرابط الفرعي (Subdomain)</label>
-            <input v-model="form.subdomain" disabled class="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-400" />
+            <div class="flex items-center gap-2" dir="ltr">
+              <span class="text-slate-400 text-xs font-mono">.platform.com</span>
+              <input
+                v-model="form.subdomain"
+                type="text"
+                placeholder="dr-name"
+                class="flex-1 bg-slate-900 border border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2 text-sm text-white font-mono"
+              />
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5 text-right">يمكنك تعديل اسم النطاق الفرعي للطبيب (يجب أن يكون فريداً وباللغة الإنجليزية).</p>
           </div>
 
           <div>
@@ -164,9 +173,10 @@
         </button>
 
         <div class="flex items-center gap-3">
-          <button @click="close" class="px-5 py-2.5 rounded-xl text-slate-400 hover:text-white font-medium text-xs">إلغاء</button>
-          <button @click="save" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-emerald-900/30">
-            حفظ التعديلات فوراً
+          <button @click="close" type="button" class="px-5 py-2.5 rounded-xl text-slate-400 hover:text-white font-medium text-xs cursor-pointer">إلغاء</button>
+          <button @click="save" :disabled="saving" type="button" class="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-emerald-900/30 cursor-pointer flex items-center gap-2">
+            <span v-if="saving">جارٍ الحفظ...</span>
+            <span v-else>حفظ التعديلات فوراً</span>
           </button>
         </div>
       </div>
@@ -185,7 +195,7 @@ const props = defineProps({
   doctor: Object,
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'saved']);
 
 const doctorsStore = useDoctorsStore();
 const plansStore = usePlansStore();
@@ -263,21 +273,45 @@ const copyApiKey = () => {
   alerts.toast('تم نسخ مفتاح API للحافظة');
 };
 
+const saving = ref(false);
+
 const impersonate = async () => {
   const result = await doctorsStore.impersonateDoctor(props.doctor.id);
   const token = result.token;
-  window.open(`http://localhost:5174/#/workspace?impersonate_token=${token}`, '_blank');
+  window.open(`http://localhost:5174/workspace?impersonate_token=${token}`, '_blank');
 };
 
 const save = async () => {
-  await doctorsStore.updateDoctorWallet(props.doctor.id, form.value);
-  await doctorsStore.updateDoctor(props.doctor.id, {
-    plan_id: form.value.plan_id,
-    subscription_ends_at: form.value.subscription_ends_at,
-    template_key: form.value.template_key,
-    custom_domain: form.value.custom_domain,
-  });
-  emit('close');
+  saving.value = true;
+  try {
+    const payload = {
+      plan_id: form.value.plan_id,
+      subscription_ends_at: form.value.subscription_ends_at || null,
+      max_clinics_override: form.value.max_clinics_override,
+      whatsapp_enabled: form.value.whatsapp_enabled,
+      whatsapp_balance: form.value.whatsapp_balance,
+      sms_enabled: form.value.sms_enabled,
+      sms_balance: form.value.sms_balance,
+      subdomain: form.value.subdomain,
+      custom_domain: form.value.custom_domain || null,
+      template_key: form.value.template_key,
+      reset_monthly_whatsapp: form.value.reset_monthly_whatsapp,
+      reset_monthly_sms: form.value.reset_monthly_sms,
+    };
+
+    const res = await doctorsStore.updateDoctor(props.doctor.id, payload);
+    alerts.toast('تم حفظ التعديلات بنجاح');
+    emit('saved', res);
+    emit('close');
+  } catch (err) {
+    console.error('Failed to update doctor:', err);
+    const msg = err.response?.data?.errors?.subdomain?.[0]
+      || err.response?.data?.message
+      || 'حدث خطأ أثناء حفظ التعديلات';
+    alerts.error('تعذر الحفظ', msg);
+  } finally {
+    saving.value = false;
+  }
 };
 
 const close = () => {

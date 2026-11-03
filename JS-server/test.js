@@ -114,6 +114,92 @@ async function runTests() {
         assert.strictEqual(logout.data.success, true);
         console.log('   ✅ Logout endpoint passed.');
 
+        // Test 8: Memory cache bounded ceiling (SYS-JS-03)
+        console.log('8. Testing MemoryCache ceiling (max 1000 items)');
+        const { MemoryCache } = require('./cache');
+        const testCache = new MemoryCache(0);
+        for (let i = 0; i < 1050; i++) {
+            testCache.set(`key_${i}`, `val_${i}`, 300, 1000);
+        }
+        assert.strictEqual(testCache.store.size, 1000, 'Cache should not exceed 1000 items');
+        assert.strictEqual(testCache.get('key_0'), null, 'Oldest item should be evicted');
+        assert.strictEqual(testCache.get('key_1049'), 'val_1049', 'Recent item should exist');
+        console.log('   ✅ Cache bounded ceiling and eviction passed.');
+
+        // Test 9: X-Internal-Secret authentication (SEC-JS-05)
+        console.log('9. Testing X-Internal-Secret authentication on /internal/broadcast-queue');
+        const unauthBroadcast = await new Promise((resolve, reject) => {
+            const req = http.request({
+                hostname: '127.0.0.1',
+                port: 3099,
+                path: '/internal/broadcast-queue',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }, (res) => {
+                resolve({ statusCode: res.statusCode });
+            });
+            req.on('error', reject);
+            req.write(JSON.stringify({ clinic_id: 1, event: 'test' }));
+            req.end();
+        });
+        assert.strictEqual(unauthBroadcast.statusCode, 401, 'Unauthenticated broadcast must return 401');
+
+        const authBroadcast = await new Promise((resolve, reject) => {
+            const req = http.request({
+                hostname: '127.0.0.1',
+                port: 3099,
+                path: '/internal/broadcast-queue',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Internal-Secret': process.env.SHARED_SECRET
+                }
+            }, (res) => {
+                let data = '';
+                res.on('data', c => { data += c; });
+                res.on('end', () => {
+                    resolve({ statusCode: res.statusCode, data: JSON.parse(data) });
+                });
+            });
+            req.on('error', reject);
+            req.write(JSON.stringify({ clinic_id: 1, event: 'queue:updated' }));
+            req.end();
+        });
+        assert.strictEqual(authBroadcast.statusCode, 200, 'Authenticated broadcast must return 200');
+        assert.strictEqual(authBroadcast.data.status, 'ok');
+        console.log('   ✅ Internal secret authentication passed.');
+
+        // Test 10: Socket.io HMAC join_clinic room auth (SEC-JS-06)
+        console.log('10. Testing Socket.io join_clinic HMAC token verification');
+        const crypto = require('crypto');
+        const clinicId = 42;
+        const validToken = crypto.createHmac('sha256', process.env.SHARED_SECRET).update(`clinic_${clinicId}`).digest('hex');
+        const invalidToken = 'bad_token';
+
+        const { io: ClientIo } = require('socket.io-client');
+        const socket = ClientIo('http://127.0.0.1:3099', { transports: ['websocket'] });
+
+        await new Promise((resolve, reject) => {
+            socket.on('connect', () => {
+                socket.emit('join_clinic', { clinicId, token: invalidToken });
+            });
+            socket.on('error', (err) => {
+                assert.ok(err.message.includes('Unauthorized'), 'Invalid token must emit error');
+                resolve();
+            });
+        });
+
+        await new Promise((resolve, reject) => {
+            socket.emit('join_clinic', { clinicId, token: validToken });
+            socket.on('joined_clinic', (res) => {
+                assert.strictEqual(res.clinicId, 42);
+                assert.strictEqual(res.success, true);
+                socket.disconnect();
+                resolve();
+            });
+        });
+        console.log('   ✅ Socket.io HMAC room authorization passed.');
+
         console.log('\n🎉 ALL ISOLATED TESTS PASSED SUCCESSFULLY! No external WhatsApp connections made.');
     } catch (err) {
         console.error('\n❌ Test failure:', err);

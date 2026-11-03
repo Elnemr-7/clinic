@@ -42,8 +42,8 @@ class CheckNearTurnNotificationsJob implements ShouldQueue
         $remaining = Appointment::whereDate('appointment_date', $this->date)
             ->where('clinic_id', $this->clinicId)
             ->where('shift_id', $this->shiftId)
-            ->whereIn('status', ['arrived_waiting', 'booked'])
-            ->orderByRaw("CASE WHEN status = 'arrived_waiting' THEN 0 ELSE 1 END")
+            ->whereIn('status', ['arrived_waiting', 'waiting', 'booked'])
+            ->orderByRaw("CASE WHEN status IN ('arrived_waiting', 'waiting') THEN 0 ELSE 1 END")
             ->orderBy('queue_number', 'asc')
             ->get();
 

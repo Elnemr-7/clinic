@@ -5,7 +5,7 @@
     <title>روشتة طبية</title>
     <style>
         body {
-            font-family: 'DejaVu Sans', 'Arial', sans-serif;
+            font-family: 'Cairo', 'Amiri', 'DejaVu Sans', 'Arial', sans-serif;
             direction: rtl;
             text-align: right;
             margin: 0;

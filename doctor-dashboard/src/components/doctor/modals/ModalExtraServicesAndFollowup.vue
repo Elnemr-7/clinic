@@ -30,12 +30,13 @@ const loadClinicServices = async () => {
 
 watch(() => props.appointment, (appt) => {
   if (appt) {
-    if (Array.isArray(appt.consultation?.extra_services_billed)) {
-      selectedServiceIds.value = appt.consultation.extra_services_billed.map(s => s.service_id || s.id);
+    const rawServices = appt.consultation?.selected_services ?? appt.consultation?.extra_services_billed ?? [];
+    if (Array.isArray(rawServices)) {
+      selectedServiceIds.value = rawServices.map(s => s.service_id || s.id);
     } else {
       selectedServiceIds.value = [];
     }
-    followupDate.value = appt.consultation?.followup_date || '';
+    followupDate.value = String(appt.consultation?.followup_date || '').slice(0, 10);
     followupNotes.value = appt.consultation?.followup_notes || '';
   }
 }, { immediate: true });
@@ -82,8 +83,18 @@ const handleSave = async () => {
   if (!props.appointment) return;
   saving.value = true;
   try {
+    const chosenServices = availableServices.value
+      .filter(s => selectedServiceIds.value.includes(s.id))
+      .map(s => ({
+        id: s.id,
+        service_name: s.name_ar || s.name,
+        price: Number(s.price || 0),
+      }));
+
     const payload = {
       service_ids: selectedServiceIds.value,
+      selected_services: chosenServices,
+      extra_services_billed: chosenServices,
       followup_date: followupDate.value || null,
       followup_notes: followupNotes.value || null,
     };

@@ -658,81 +658,24 @@ const saveMargins = async () => {
   }
 };
 
-const handleTestPrint = () => {
+const handleTestPrint = async () => {
   const top = printMargins.value.margin_top;
   const bottom = printMargins.value.margin_bottom;
   const right = printMargins.value.margin_right;
   const left = printMargins.value.margin_left;
   const size = paperSize.value;
 
-  const win = window.open('', '_blank');
-  win.document.write(`
-    <!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-      <meta charset="utf-8">
-      <title>ورقة اختبار هوامش الطباعة</title>
-      <style>
-        @page {
-          size: ${size};
-          margin: 0;
-        }
-        body {
-          margin: 0;
-          padding: 0;
-          font-family: sans-serif;
-          box-sizing: border-box;
-        }
-        .container {
-          box-sizing: border-box;
-          width: 100vw;
-          height: 100vh;
-          padding-top: ${top}mm;
-          padding-bottom: ${bottom}mm;
-          padding-right: ${right}mm;
-          padding-left: ${left}mm;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-        .header-box {
-          border: 2px dashed #0f766e;
-          background: #f0fdfa;
-          padding: 10px;
-          text-align: center;
-          font-size: 14px;
-          font-weight: bold;
-          color: #0f766e;
-        }
-        .body-box {
-          border: 1px solid #94a3b8;
-          padding: 15px;
-          text-align: center;
-          font-size: 12px;
-          color: #334155;
-          flex: 1;
-          margin: 10px 0;
-        }
-      </style>
-    </head>
-    <body onload="window.print()">
-      <div class="container">
-        <div class="header-box">
-          بداية منطقة الطباعة (أعلى ورقة الروشتة بعد ${top}mm)
-        </div>
-        <div class="body-box">
-          <p><strong>منطقة طباعة الأدوية والتعليمات</strong></p>
-          <p>الهامش الأيمن: ${right}mm | الهامش الأيسر: ${left}mm</p>
-          <p>إذا تطابقت هذه الحدود مع الفراغ المخصص في مطبوعاتك، فإن القياسات صحيحة تماماً.</p>
-        </div>
-        <div class="header-box">
-          نهاية منطقة الطباعة (أسفل ورقة الروشتة قبل ${bottom}mm)
-        </div>
-      </div>
-    </body>
-    </html>
-  `);
-  win.document.close();
+  try {
+    const res = await client.get('/settings/test-print', {
+      params: { top, bottom, right, left, paper_size: size },
+      responseType: 'blob',
+    });
+    const blob = new Blob([res.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (e) {
+    alerts.error('فشل إنشاء ورقة الاختبار', e.response?.data?.message || 'حدث خطأ أثناء الاتصال بالخادم');
+  }
 };
 
 const handleSaveDrug = async () => {

@@ -35,10 +35,11 @@ const emptyLabRow = () => ({
 watch(() => props.appointment, (appt) => {
   if (appt && appt.consultation) {
     const c = appt.consultation;
-    if (Array.isArray(c.lab_requests) && c.lab_requests.length > 0) {
-      labRequests.value = c.lab_requests.map(l => ({
+    const rawLabs = c.requested_labs || c.lab_requests || [];
+    if (Array.isArray(rawLabs) && rawLabs.length > 0) {
+      labRequests.value = rawLabs.map(l => ({
         test_name: l.test_name || '',
-        category: l.category || 'lab',
+        category: l.category || l.type || 'lab',
         instructions: l.instructions || '',
       }));
     } else {
@@ -98,6 +99,7 @@ const handleSaveLabs = async () => {
   saving.value = true;
   try {
     const payload = {
+      requested_labs: labRequests.value,
       lab_requests: labRequests.value,
     };
     const res = await workspaceStore.saveLabs(props.appointment.id, payload);

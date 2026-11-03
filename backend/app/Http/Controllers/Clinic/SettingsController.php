@@ -20,7 +20,9 @@ use App\Traits\ApiResponseTrait;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SettingsController extends Controller
 {
@@ -75,7 +77,16 @@ class SettingsController extends Controller
     public function testPrintPdf(Request $request)
     {
         $tenant = $request->user()->tenant;
-        $margins = $request->input('print_settings', $tenant->print_settings ?? []);
+        $margins = $request->input('print_settings', []);
+        if (empty($margins)) {
+            $margins = [
+                'margin_top' => $request->query('top', $request->query('margin_top', $tenant->print_settings['margin_top'] ?? 45)),
+                'margin_bottom' => $request->query('bottom', $request->query('margin_bottom', $tenant->print_settings['margin_bottom'] ?? 25)),
+                'margin_left' => $request->query('left', $request->query('margin_left', $tenant->print_settings['margin_left'] ?? 15)),
+                'margin_right' => $request->query('right', $request->query('margin_right', $tenant->print_settings['margin_right'] ?? 15)),
+                'paper_size' => $request->query('paper_size', $tenant->print_settings['paper_size'] ?? 'A5'),
+            ];
+        }
         $filePath = $this->pdfService->generateTestMarginsPdf($tenant, $margins);
 
         return response()->file($filePath, [
@@ -253,43 +264,92 @@ class SettingsController extends Controller
         $tenant = $request->user()->tenant;
         $clinic = Clinic::findOrFail($request->clinic_id);
         $date = $request->date;
-
-        $dayOff = ClinicDayOff::create([
-            'tenant_id' => $tenant->id,
-            'clinic_id' => $clinic->id,
-            'date' => $date,
-            'reason_ar' => $request->reason_ar ?? 'عطلة طارئة',
-        ]);
-
-        // Find affected booked appointments
-        $affected = Appointment::where('clinic_id', $clinic->id)
-            ->whereDate('appointment_date', $date)
-            ->whereIn('status', ['booked', 'pending_payment'])
-            ->get();
-
         $action = $request->action;
         $targetDate = $request->target_date;
 
-        foreach ($affected as $apt) {
-            if ($action === 'cancel_and_notify') {
-                $apt->update(['status' => 'cancelled']);
-                $msg = "نعتذر لكم! تم إلغاء حجزكم في عيادة {$clinic->name_ar} بتاريخ {$date} بسبب: {$dayOff->reason_ar}. يرجى حجز موعد جديد.";
+        return DB::transaction(function () use ($tenant, $clinic, $date, $action, $targetDate, $request) {
+            $dayOff = ClinicDayOff::updateOrCreate(
+                ['clinic_id' => $clinic->id, 'date' => $date],
+                [
+                    'tenant_id' => $tenant->id,
+                    'reason_ar' => $request->reason_ar ?? 'عطلة طارئة',
+                ]
+            );
+
+            $affected = Appointment::where('clinic_id', $clinic->id)
+                ->whereDate('appointment_date', $date)
+                ->whereNotIn('status', ['cancelled', 'completed'])
+                ->orderBy('queue_number')
+                ->lockForUpdate()
+                ->get();
+
+            $notificationsToSend = [];
+
+            if ($action === 'move_to_date') {
+                $targetDayOfWeek = Carbon::parse($targetDate)->dayOfWeek;
+                $targetShift = ClinicShift::where('clinic_id', $clinic->id)
+                    ->where('day_of_week', $targetDayOfWeek)
+                    ->where('is_active', true)
+                    ->first();
+
+                if (!$targetShift) {
+                    throw ValidationException::withMessages([
+                        'target_date' => ['لا توجد فترة عمل مفعلة في التاريخ البديل المختار. يرجى إضافة فترة عمل أولاً.']
+                    ]);
+                }
+
+                $currentMaxQueue = (int) Appointment::where('clinic_id', $clinic->id)
+                    ->where('shift_id', $targetShift->id)
+                    ->whereDate('appointment_date', $targetDate)
+                    ->lockForUpdate()
+                    ->max('queue_number');
+
+                foreach ($affected as $apt) {
+                    $currentMaxQueue++;
+                    $apt->update([
+                        'appointment_date' => $targetDate,
+                        'shift_id'         => $targetShift->id,
+                        'queue_number'     => $currentMaxQueue,
+                    ]);
+
+                    $msg = "نحيطكم علماً بأنه تم ترحيل حجزكم في عيادة {$clinic->name_ar} إلى تاريخ {$targetDate} نظراً لظرف طارئ: {$dayOff->reason_ar}. رقمكم الجديد: #{$currentMaxQueue}";
+                    $notificationsToSend[] = [
+                        'apt' => $apt,
+                        'msg' => $msg,
+                    ];
+                }
             } else {
-                $apt->update(['appointment_date' => $targetDate]);
-                $msg = "نحيطكم علماً بأنه تم ترحيل حجزكم في عيادة {$clinic->name_ar} إلى تاريخ {$targetDate} نظراً لظرف طارئ: {$dayOff->reason_ar}.";
+                foreach ($affected as $apt) {
+                    $apt->update(['status' => 'cancelled']);
+                    $msg = "نعتذر لكم! تم إلغاء حجزكم في عيادة {$clinic->name_ar} بتاريخ {$date} بسبب: {$dayOff->reason_ar}. يرجى حجز موعد جديد.";
+                    $notificationsToSend[] = [
+                        'apt' => $apt,
+                        'msg' => $msg,
+                    ];
+                }
             }
 
-            if ($apt->whatsapp_opted_in && $tenant->whatsapp_enabled) {
-                $this->whatsappService->sendMessage($tenant, $apt->patient->phone, $msg, $apt->id, 'apology_day_off');
-            } elseif ($tenant->sms_enabled) {
-                $this->smsService->sendSms($tenant, $apt->patient->phone, $msg, 'apology_day_off', $apt->id);
-            }
-        }
+            DB::afterCommit(function () use ($notificationsToSend, $tenant) {
+                foreach ($notificationsToSend as $item) {
+                    $apt = $item['apt'];
+                    $msg = $item['msg'];
+                    try {
+                        if ($apt->whatsapp_opted_in && $tenant->whatsapp_enabled) {
+                            $this->whatsappService->sendMessage($tenant, $apt->patient->phone, $msg, $apt->id, 'apology_day_off');
+                        } elseif ($tenant->sms_enabled) {
+                            $this->smsService->sendSms($tenant, $apt->patient->phone, $msg, 'apology_day_off', $apt->id);
+                        }
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning("Day off notification dispatch error: " . $e->getMessage());
+                    }
+                }
+            });
 
-        return $this->successResponse([
-            'day_off' => $dayOff,
-            'affected_appointments_count' => $affected->count(),
-        ], "تم تسجيل يوم الإجازة ومعالجة {$affected->count()} حجزاً بنجاح");
+            return $this->successResponse([
+                'day_off' => $dayOff,
+                'affected_appointments_count' => $affected->count(),
+            ], "تم تسجيل يوم الإجازة ومعالجة {$affected->count()} حجزاً بنجاح");
+        });
     }
 
     public function getReceptionists(Request $request): JsonResponse

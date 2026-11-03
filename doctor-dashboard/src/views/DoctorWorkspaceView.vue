@@ -1,5 +1,24 @@
 <template>
   <div class="max-w-[1600px] mx-auto w-full p-3 lg:p-5 pb-24 lg:pb-32 select-none text-right font-sans min-w-0" dir="rtl">
+    
+    <!-- Zero Clinics Onboarding Alert -->
+    <div v-if="!hasClinics" class="mb-4 p-4 rounded-2xl bg-brand/10 border border-brand/30 flex flex-col md:flex-row items-center justify-between gap-3 text-content-primary shadow-xs">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">🏥</span>
+        <div>
+          <h4 class="font-black text-sm text-content-primary">أهلاً بك يا دكتور! لم تقم بإنشاء أي عيادة أو فرع حتى الآن</h4>
+          <p class="text-xs text-content-muted mt-0.5">ابدأ بإضافة بيانات عيادتك الأولى وتحديد فترات العمل ومواعيد الكشف لتتمكن من تشغيل العيادة واستقبال المرضى.</p>
+        </div>
+      </div>
+      <router-link
+        to="/settings/branches"
+        class="px-5 py-2.5 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl font-bold text-xs inline-flex items-center gap-2 shadow-sm transition shrink-0 cursor-pointer"
+      >
+        <span>+</span>
+        <span>إضافة أول عيادة الآن</span>
+      </router-link>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full items-start">
       
       <!-- ======================================================== -->
@@ -394,6 +413,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useDoctorWorkspaceStore } from '../stores/doctorWorkspace';
 import { useReceptionQueueStore } from '../stores/receptionQueue';
+import { useSettingsStore } from '../stores/settings';
 import ActivePatientCard from '../components/doctor/ActivePatientCard.vue';
 import MedicalAlertBanner from '../components/doctor/MedicalAlertBanner.vue';
 import VitalsStrip from '../components/doctor/VitalsStrip.vue';
@@ -418,6 +438,13 @@ import {
 const authStore = useAuthStore();
 const workspaceStore = useDoctorWorkspaceStore();
 const queueStore = useReceptionQueueStore();
+const settingsStore = useSettingsStore();
+
+const hasClinics = computed(() => {
+  if (authStore.user?.tenant?.clinics?.length) return true;
+  if (authStore.clinic) return true;
+  return (settingsStore.branches?.length || 0) > 0;
+});
 
 const showHistoryModal = ref(false);
 const showPrescriptionModal = ref(false);
@@ -537,7 +564,10 @@ const handleKeyDown = (e) => {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
-  await refreshWorkspace();
+  await Promise.all([
+    refreshWorkspace(),
+    settingsStore.fetchBranches(),
+  ]);
   if (workspaceStore.currentPatient?.patient?.id) {
     workspaceStore.fetchPatientHistory(workspaceStore.currentPatient.patient.id);
   }

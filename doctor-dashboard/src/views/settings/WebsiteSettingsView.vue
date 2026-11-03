@@ -20,19 +20,42 @@
           </div>
         </div>
 
-        <div class="p-3 bg-surface-card border border-line-subtle rounded-xl text-xs space-y-2">
+        <div class="p-3 bg-surface-card border border-line-subtle rounded-xl text-xs space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-content-secondary">النطاق الفرعي:</span>
             <span class="font-mono font-bold text-brand" dir="ltr">
               {{ settingsStore.settings?.tenant?.subdomain || 'clinic' }}.clinic.com
             </span>
           </div>
-          <div class="flex items-center justify-between">
-            <span class="text-content-secondary">النطاق المخصص (Custom Domain):</span>
-            <span class="font-mono font-bold text-content-primary" dir="ltr">
-              {{ settingsStore.settings?.tenant?.custom_domain || 'غير مفعل' }}
-            </span>
+          <div class="space-y-1.5 pt-2 border-t border-line-subtle">
+            <label class="block text-content-secondary font-bold">النطاق المخصص (Custom Domain):</label>
+            <div class="flex items-center gap-2">
+              <input
+                v-model="customDomain"
+                type="text"
+                placeholder="example.com أو clinic.dr-name.com"
+                class="flex-1 px-3 py-2 text-xs bg-surface-elevated rounded-xl border border-line-subtle text-content-primary font-mono focus:outline-none focus:border-brand"
+                dir="ltr"
+              />
+              <button
+                type="button"
+                @click="handleSaveCustomDomain"
+                :disabled="savingDomain"
+                class="px-4 py-2 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-xs cursor-pointer"
+              >
+                {{ savingDomain ? 'جاري الحفظ...' : 'حفظ النطاق' }}
+              </button>
+            </div>
           </div>
+        </div>
+
+        <!-- CNAME instruction box -->
+        <div class="p-3 bg-surface-card/60 border border-brand-border/40 rounded-xl text-[11px] space-y-1.5 text-content-secondary">
+          <p class="font-bold text-brand flex items-center gap-1">
+            <span>⚙️ إعدادات DNS للنطاق الخاص:</span>
+          </p>
+          <p>أضف سجل من نوع <code class="font-mono bg-surface-elevated px-1.5 py-0.5 rounded text-content-primary font-bold">CNAME</code> يشير إلى:</p>
+          <p class="font-mono bg-surface-elevated px-2 py-1 rounded text-content-primary font-bold select-all" dir="ltr">cname.platform.com</p>
         </div>
 
         <p class="text-[11px] text-content-muted leading-relaxed">
@@ -91,11 +114,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useSettingsStore } from '../../stores/settings';
+import client from '../../api/client';
 import alerts from '../../utils/alerts';
 import { Globe, Smartphone } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
 
+const customDomain = ref('');
+const savingDomain = ref(false);
 const waPhone = ref('201001234567');
 const pairingCode = ref('');
 const loadingPairing = ref(false);
@@ -103,7 +129,26 @@ const copiedCode = ref(false);
 
 onMounted(async () => {
   await settingsStore.fetchAll();
+  if (settingsStore.settings?.tenant?.custom_domain) {
+    customDomain.value = settingsStore.settings.tenant.custom_domain;
+  }
 });
+
+const handleSaveCustomDomain = async () => {
+  if (!customDomain.value.trim()) return;
+  savingDomain.value = true;
+  try {
+    await client.post('/settings/custom-domain', {
+      custom_domain: customDomain.value.trim(),
+    });
+    alerts.success('تم حفظ النطاق المخصص بنجاح', 'يرجى التأكد من ضبط سجل CNAME لدى مزود النطاق');
+    await settingsStore.fetchAll();
+  } catch (e) {
+    alerts.error('فشل حفظ النطاق', e.response?.data?.message || 'تأكد من كتابة اسم النطاق بشكل صحيح');
+  } finally {
+    savingDomain.value = false;
+  }
+};
 
 const handleGeneratePairingCode = async () => {
   if (!waPhone.value) return;

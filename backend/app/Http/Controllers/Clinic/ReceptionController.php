@@ -79,16 +79,29 @@ class ReceptionController extends Controller
             'phone' => 'required|string',
             'name' => 'required|string',
             'shift_id' => 'nullable|integer',
-            'visit_type' => 'nullable|in:new_visit,followup,emergency,procedure',
+            'visit_type' => 'nullable|string',
+            'appointment_type' => 'nullable|string',
             'gender' => 'nullable|in:male,female',
             'age' => 'nullable|integer',
         ]);
+
+        $typeMap = [
+            'examination' => 'new_visit',
+            'urgent'      => 'emergency',
+            'followup'    => 'followup',
+            'procedure'   => 'procedure',
+            'new_visit'   => 'new_visit',
+            'emergency'   => 'emergency',
+        ];
+
+        $rawType = $request->input('visit_type') ?? $request->input('appointment_type');
+        $mappedVisitType = $rawType ? ($typeMap[$rawType] ?? 'new_visit') : null;
 
         $tenantId = $request->user()->tenant_id;
         $clinic = Clinic::findOrFail($request->clinic_id);
         $normalizedPhone = PhoneNormalizer::normalizeEgyptianPhone($request->phone);
 
-        return DB::transaction(function () use ($request, $clinic, $tenantId, $normalizedPhone) {
+        return DB::transaction(function () use ($request, $clinic, $tenantId, $normalizedPhone, $mappedVisitType) {
             // Find or create patient with canonical Egyptian format
             $patient = Patient::firstOrCreate(
                 ['tenant_id' => $tenantId, 'phone' => $normalizedPhone],
@@ -114,7 +127,7 @@ class ReceptionController extends Controller
 
             // Auto followup detection
             $followupCheck = $this->followupService->checkEligibility($tenantId, $clinic->id, $normalizedPhone);
-            $visitType = $request->input('visit_type');
+            $visitType = $mappedVisitType;
 
             if (!$visitType) {
                 $visitType = $followupCheck['eligible'] ? 'followup' : 'new_visit';
@@ -135,6 +148,7 @@ class ReceptionController extends Controller
 
             $windows = $this->queueService->calculateInitialWindow($shift, $clinic, $queueNumber, today());
             $refCode = 'CLN-' . strtoupper(Str::random(5));
+            $isPaid = $request->boolean('mark_paid') || $request->boolean('markPaidNow');
 
             $appointment = Appointment::create([
                 'tenant_id' => $tenantId,
@@ -151,8 +165,22 @@ class ReceptionController extends Controller
                 'estimated_window_end' => $windows['estimated_window_end'],
                 'consultation_fee' => $fee,
                 'total_amount' => $fee,
-                'is_paid' => false,
+                'is_paid' => $isPaid,
             ]);
+
+            if ($isPaid) {
+                CashTransaction::create([
+                    'tenant_id' => $tenantId,
+                    'clinic_id' => $clinic->id,
+                    'appointment_id' => $appointment->id,
+                    'created_by_user_id' => $request->user()->id,
+                    'type' => 'income',
+                    'category' => $visitType === 'followup' ? 'followup' : 'consultation',
+                    'amount' => $fee,
+                    'description_ar' => "تحصيل كشف سريع للمريض: {$patient->name} (رقم #{$queueNumber})",
+                    'transaction_date' => today(),
+                ]);
+            }
 
             event(new QueueUpdatedEvent($clinic->id, $shift->id, today()->toDateString()));
 

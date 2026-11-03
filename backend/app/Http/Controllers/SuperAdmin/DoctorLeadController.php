@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Clinic;
+use App\Models\ClinicShift;
 use App\Models\DoctorLead;
 use App\Models\Plan;
 use App\Models\Tenant;
@@ -29,8 +30,17 @@ class DoctorLeadController extends Controller
         $lead = DoctorLead::findOrFail($leadId);
 
         return DB::transaction(function () use ($lead, $request) {
-            $planId = $request->input('plan_id', $lead->requested_plan_id ?? Plan::first()->id);
-            $plan = Plan::findOrFail($planId);
+            $planId = $request->input('plan_id', $lead->requested_plan_id);
+            $plan = $planId ? Plan::find($planId) : Plan::first();
+            if (!$plan) {
+                $plan = Plan::create([
+                    'name_ar' => 'الخطة القياسية',
+                    'price_monthly' => 500,
+                    'price_yearly' => 5000,
+                    'features' => [],
+                    'is_active' => true,
+                ]);
+            }
 
             $subdomain = Str::slug($request->input('subdomain', 'dr-' . Str::random(6)));
 
@@ -68,6 +78,28 @@ class DoctorLeadController extends Controller
                 'tv_screen_code' => strtoupper(Str::random(6)),
                 'is_active' => true,
             ]);
+
+            // Seed default working shifts (Saturday through Thursday, 17:00:00 to 22:00:00)
+            $shiftDays = [
+                6 => 'السبت',
+                0 => 'الأحد',
+                1 => 'الإثنين',
+                2 => 'الثلاثاء',
+                3 => 'الأربعاء',
+                4 => 'الخميس',
+            ];
+            foreach ($shiftDays as $dayOfWeek => $dayName) {
+                ClinicShift::create([
+                    'tenant_id' => $tenant->id,
+                    'clinic_id' => $clinic->id,
+                    'day_of_week' => $dayOfWeek,
+                    'shift_name_ar' => 'الفترة المسائية - ' . $dayName,
+                    'start_time' => '17:00:00',
+                    'end_time' => '22:00:00',
+                    'max_patients' => 30,
+                    'is_active' => true,
+                ]);
+            }
 
             $lead->update(['status' => 'converted']);
 
