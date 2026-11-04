@@ -124,6 +124,7 @@ Route::prefix('clinic')->group(function () {
 
             Route::get('/receptionists', [\App\Http\Controllers\Clinic\SettingsController::class, 'getReceptionists']);
             Route::post('/receptionists', [\App\Http\Controllers\Clinic\SettingsController::class, 'saveReceptionist']);
+            Route::delete('/receptionists/{id}', [\App\Http\Controllers\Clinic\SettingsController::class, 'deleteReceptionist']);
 
             Route::get('/whatsapp-qr', [\App\Http\Controllers\Clinic\SettingsController::class, 'getQrCode']);
             Route::post('/topup', [\App\Http\Controllers\Clinic\SettingsController::class, 'requestTopup']);

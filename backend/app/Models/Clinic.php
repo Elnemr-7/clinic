@@ -12,6 +12,39 @@ class Clinic extends Model
 
     protected $guarded = ['id'];
 
+    protected $appends = [
+        'name',
+        'address',
+        'city',
+        'examination_fee',
+        'followup_fee',
+    ];
+
+    public function getNameAttribute(): ?string
+    {
+        return $this->name_ar;
+    }
+
+    public function getAddressAttribute(): ?string
+    {
+        return $this->address_ar;
+    }
+
+    public function getCityAttribute(): ?string
+    {
+        return $this->city_ar;
+    }
+
+    public function getExaminationFeeAttribute(): float
+    {
+        return (float) ($this->consultation_price ?? 0);
+    }
+
+    public function getFollowupFeeAttribute(): float
+    {
+        return (float) ($this->followup_price ?? 0);
+    }
+
     protected function casts(): array
     {
         return [

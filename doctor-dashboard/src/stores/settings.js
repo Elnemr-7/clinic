@@ -95,6 +95,11 @@ export const useSettingsStore = defineStore('settings', {
       const res = await client.get('/settings/receptionists');
       this.receptionists = res.data.data;
     },
+    async deleteReceptionist(id) {
+      await client.delete(`/settings/receptionists/${id}`);
+      const res = await client.get('/settings/receptionists');
+      this.receptionists = res.data.data;
+    },
     async requestWhatsAppPairing(phone) {
       const res = await client.get('/settings/whatsapp-qr', { params: { phone } });
       return res.data.data;

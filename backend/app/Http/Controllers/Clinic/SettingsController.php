@@ -434,6 +434,15 @@ class SettingsController extends Controller
         return $this->successResponse($user, 'تم حفظ حساب السكرتارية بنجاح');
     }
 
+    public function deleteReceptionist(int $id, Request $request): JsonResponse
+    {
+        $user = User::where('tenant_id', $request->user()->tenant_id)
+            ->where('role', 'receptionist')
+            ->findOrFail($id);
+        $user->delete();
+        return $this->successResponse(null, 'تم حذف حساب موظف الاستقبال بنجاح');
+    }
+
     public function getQrCode(Request $request): JsonResponse
     {
         $tenant = $request->user()->tenant;
