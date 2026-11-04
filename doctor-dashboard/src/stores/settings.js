@@ -103,5 +103,19 @@ export const useSettingsStore = defineStore('settings', {
       const res = await client.post('/settings/topup', payload);
       return res.data;
     },
+    async saveWebsiteSettings(payload) {
+      const res = await client.post('/settings/website', payload);
+      await this.fetchAll();
+      return res.data;
+    },
+    async uploadImage(file, type = 'og_image') {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('type', type);
+      const res = await client.post('/settings/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    },
   },
 });

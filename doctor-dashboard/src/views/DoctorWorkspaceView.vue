@@ -540,23 +540,25 @@ const handleQuickPrint = () => {
   }
 };
 
-// Keyboard Shortcuts (Alt+1, Alt+2, Alt+3, Alt+4, Alt+N)
+// Keyboard Shortcuts (Alt+1, Alt+2, Alt+3, Alt+4, Alt+N) - with Arabic keyboard & e.code support
 const handleKeyDown = (e) => {
   if (!e.altKey) return;
-  const key = e.key.toLowerCase();
-  if (key === '1') {
+  const key = e.key ? e.key.toLowerCase() : '';
+  const code = e.code || '';
+
+  if (key === '1' || code === 'Digit1' || code === 'Numpad1') {
     e.preventDefault();
     showHistoryModal.value = true;
-  } else if (key === '2') {
+  } else if (key === '2' || code === 'Digit2' || code === 'Numpad2') {
     e.preventDefault();
     showPrescriptionModal.value = true;
-  } else if (key === '3') {
+  } else if (key === '3' || code === 'Digit3' || code === 'Numpad3') {
     e.preventDefault();
     showLabsModal.value = true;
-  } else if (key === '4') {
+  } else if (key === '4' || code === 'Digit4' || code === 'Numpad4') {
     e.preventDefault();
     showExtraModal.value = true;
-  } else if (key === 'n') {
+  } else if (key === 'n' || code === 'KeyN' || key === 'ى') {
     e.preventDefault();
     handleNextPatient();
   }

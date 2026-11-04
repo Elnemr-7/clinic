@@ -21,6 +21,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -50,9 +51,28 @@ class SettingsController extends Controller
         $tenant = $request->user()->tenant->load(['plan', 'clinics.shifts']);
         $waStatus = $this->whatsappService->getSessionStatus($tenant);
 
+        // Calculate current website mode if not explicitly set (Default is Mode 1)
+        $currentMode = $tenant->website_settings['website_mode'] ?? null;
+        if (!$currentMode) {
+            if ($tenant->is_custom_standalone_website && $tenant->custom_domain) {
+                $currentMode = 4;
+            } elseif ($tenant->is_custom_standalone_website) {
+                $currentMode = 3;
+            } elseif ($tenant->custom_domain) {
+                $currentMode = 2;
+            } else {
+                $currentMode = 1;
+            }
+        }
+
         return $this->successResponse([
             'tenant' => $tenant,
             'whatsapp_status' => $waStatus,
+            'website_mode' => (int)$currentMode,
+            'plan_capabilities' => [
+                'allow_custom_domain' => (bool)$tenant->plan?->allow_custom_domain,
+                'allow_custom_website' => (bool)$tenant->plan?->allow_custom_website,
+            ],
         ]);
     }
 
@@ -219,28 +239,54 @@ class SettingsController extends Controller
 
     public function saveShift(Request $request): JsonResponse
     {
+        $tenantId = $request->user()->tenant_id;
+
+        // Support array of days or single day_of_week
+        $days = $request->input('days', $request->input('days_of_week'));
+        if (is_null($days) && $request->has('day_of_week')) {
+            $days = [$request->input('day_of_week')];
+        }
+
+        $shiftName = $request->input('shift_name_ar', $request->input('name'));
+
+        $request->merge([
+            'shift_name_ar' => $shiftName,
+            'days' => (array) $days,
+        ]);
+
         $request->validate([
             'clinic_id' => 'required',
-            'day_of_week' => 'required|integer|between:0,6',
-            'shift_name_ar' => 'required',
+            'days' => 'required|array|min:1',
+            'days.*' => 'integer|between:0,6',
+            'shift_name_ar' => 'required|string',
             'start_time' => 'required',
             'end_time' => 'required',
         ]);
 
-        $shift = ClinicShift::updateOrCreate(
-            ['id' => $request->input('id')],
-            array_merge($request->only([
-                'clinic_id',
-                'day_of_week',
-                'shift_name_ar',
-                'start_time',
-                'end_time',
-                'max_patients',
-                'is_active',
-            ]), ['tenant_id' => $request->user()->tenant_id])
-        );
+        $daysList = $request->input('days');
+        $shiftId = $request->input('id');
+        $savedShifts = [];
 
-        return $this->successResponse($shift, 'تم حفظ فترة العمل بنجاح');
+        foreach ($daysList as $day) {
+            $shift = ClinicShift::updateOrCreate(
+                [
+                    'id' => (count($daysList) === 1 && $shiftId) ? $shiftId : null,
+                    'clinic_id' => $request->input('clinic_id'),
+                    'day_of_week' => $day,
+                    'tenant_id' => $tenantId,
+                ],
+                [
+                    'shift_name_ar' => $shiftName,
+                    'start_time' => $request->input('start_time'),
+                    'end_time' => $request->input('end_time'),
+                    'max_patients' => $request->input('max_patients', 20),
+                    'is_active' => $request->input('is_active', true),
+                ]
+            );
+            $savedShifts[] = $shift;
+        }
+
+        return $this->successResponse($savedShifts, 'تم حفظ فترة العمل بنجاح');
     }
 
     public function deleteShift(int $id, Request $request): JsonResponse
@@ -428,7 +474,175 @@ class SettingsController extends Controller
         $request->validate(['custom_domain' => 'required|string']);
         $tenant = $request->user()->tenant;
 
+        if (!$tenant->plan || !$tenant->plan->allow_custom_domain) {
+            return $this->errorResponse(
+                'باقتك الحالية لا تدعم ربط نطاق مخصص (Custom Domain). يرجى ترقية باقتك إلى الباقة المتقدمة أو باقة VIP للاستفادة من هذه الميزة.',
+                null,
+                403
+            );
+        }
+
         $result = $this->cloudflareService->registerCustomHostname($tenant, $request->custom_domain);
         return $this->successResponse($result);
+    }
+
+    public function saveWebsiteSettings(Request $request): JsonResponse
+    {
+        $tenant = $request->user()->tenant->load('plan');
+        $plan = $tenant->plan;
+
+        $validated = $request->validate([
+            'website_mode' => 'required|integer|between:1,4',
+            'custom_domain' => 'nullable|string|max:255',
+            'custom_website_url' => 'nullable|string|max:255',
+            'template_key' => 'nullable|string|max:50',
+            'content' => 'nullable|array',
+            'seo' => 'nullable|array',
+            'seo.meta_title' => 'nullable|string|max:255',
+            'seo.meta_description' => 'nullable|string|max:500',
+            'seo.meta_keywords' => 'nullable|string|max:500',
+            'og' => 'nullable|array',
+            'og.og_title' => 'nullable|string|max:255',
+            'og.og_description' => 'nullable|string|max:500',
+            'og.og_image' => 'nullable|string|max:500',
+        ]);
+
+        $mode = (int)$validated['website_mode'];
+
+        // Plan capability checks
+        if ($mode === 2 && (!$plan || !$plan->allow_custom_domain)) {
+            return $this->errorResponse(
+                'النموذج 2 (صفحة المنصة + نطاق مخصص) غير متاح في باقتك الحالية. يرجى الترقية للباقة المتقدمة أو باقة VIP.',
+                null,
+                403
+            );
+        }
+
+        if ($mode === 3 && (!$plan || !$plan->allow_custom_website)) {
+            return $this->errorResponse(
+                'النموذج 3 (صفحة هبوط مخصصة + نطاق المنصة) ميزة حصرية لمشتركي باقة VIP الشاملة. يرجى ترقية باقتك للاستفادة منها.',
+                null,
+                403
+            );
+        }
+
+        if ($mode === 4 && (!$plan || !$plan->allow_custom_domain || !$plan->allow_custom_website)) {
+            return $this->errorResponse(
+                'النموذج 4 (صفحة هبوط مخصصة + نطاق مخصص) ميزة حصرية لمشتركي باقة VIP الشاملة. يرجى ترقية باقتك للاستفادة منها.',
+                null,
+                403
+            );
+        }
+
+        // Validate custom domain if required for modes 2 and 4
+        if (in_array($mode, [2, 4], true)) {
+            if (empty($validated['custom_domain'])) {
+                return $this->errorResponse('يرجى إدخال النطاق المخصص (Custom Domain)', null, 422);
+            }
+            $cleanDomain = strtolower(trim($validated['custom_domain']));
+            $cleanDomain = preg_replace('#^https?://#', '', $cleanDomain);
+            $cleanDomain = rtrim($cleanDomain, '/');
+
+            // Unique check ignoring this tenant
+            if (\App\Models\Tenant::where('custom_domain', $cleanDomain)->where('id', '!=', $tenant->id)->exists()) {
+                return $this->errorResponse('هذا النطاق المخصص مستخدم بالفعل لعيادة أخرى', null, 422);
+            }
+            $tenant->custom_domain = $cleanDomain;
+
+            // Attempt Cloudflare register
+            try {
+                $this->cloudflareService->registerCustomHostname($tenant, $cleanDomain);
+            } catch (\Throwable $e) {
+                // Ignore cloudflare network error in local dev
+            }
+        } else {
+            // Modes 1 and 3 use platform subdomain only
+            $tenant->custom_domain = null;
+        }
+
+        // Is custom standalone website?
+        $tenant->is_custom_standalone_website = in_array($mode, [3, 4], true);
+
+        if (!empty($validated['template_key'])) {
+            $tenant->template_key = $validated['template_key'];
+        }
+
+        $currentSettings = $tenant->website_settings ?? [];
+        $currentSettings['website_mode'] = $mode;
+        if (isset($validated['custom_website_url'])) {
+            $currentSettings['custom_website_url'] = trim($validated['custom_website_url']);
+        }
+
+        if (array_key_exists('content', $validated)) {
+            $c = $validated['content'] ?? [];
+            $currentSettings['content'] = $c;
+            $currentSettings['hero_title'] = $c['hero_title'] ?? ($c['hero']['title'] ?? null);
+            $currentSettings['hero_subtitle'] = $c['hero_subtitle'] ?? ($c['hero']['subtitle'] ?? null);
+            $currentSettings['about_text'] = $c['about_text'] ?? ($c['about']['bio'] ?? null);
+            $currentSettings['experience_years'] = $c['experience_years'] ?? ($c['hero']['metrics'][0]['value'] ?? null);
+            $currentSettings['primary_color'] = $c['primary_color'] ?? '#0F766E';
+            $currentSettings['phone'] = $c['phone'] ?? ($c['contact']['phone'] ?? null);
+            $currentSettings['address'] = $c['address'] ?? ($c['contact']['address'] ?? null);
+            $currentSettings['social_links'] = $c['social_links'] ?? [];
+            $currentSettings['services_list'] = $c['services'] ?? [];
+        }
+
+        if (array_key_exists('seo', $validated)) {
+            $currentSettings['seo'] = [
+                'meta_title' => $validated['seo']['meta_title'] ?? null,
+                'meta_description' => $validated['seo']['meta_description'] ?? null,
+                'meta_keywords' => $validated['seo']['meta_keywords'] ?? null,
+            ];
+        }
+
+        if (array_key_exists('og', $validated)) {
+            $currentSettings['og'] = [
+                'og_title' => $validated['og']['og_title'] ?? null,
+                'og_description' => $validated['og']['og_description'] ?? null,
+                'og_image' => $validated['og']['og_image'] ?? null,
+            ];
+        }
+
+        $tenant->website_settings = $currentSettings;
+        $tenant->save();
+
+        return $this->successResponse([
+            'tenant' => $tenant->fresh(['plan', 'clinics.shifts']),
+            'website_mode' => $mode,
+        ], 'تم حفظ إعدادات الموقع ونموذج الاستضافة بنجاح');
+    }
+
+    public function uploadImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp,gif|max:5120',
+            'type' => 'nullable|string|in:og_image,logo,avatar,banner',
+        ]);
+
+        $tenant = $request->user()->tenant;
+        $file = $request->file('image');
+        $type = $request->input('type', 'og_image');
+
+        $folder = "tenants/{$tenant->id}/{$type}";
+        $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs($folder, $filename, 'public');
+
+        $url = asset('storage/' . $path);
+
+        if ($type === 'og_image') {
+            $settings = $tenant->website_settings ?? [];
+            if (!isset($settings['og'])) {
+                $settings['og'] = [];
+            }
+            $settings['og']['og_image'] = $url;
+            $tenant->website_settings = $settings;
+            $tenant->save();
+        }
+
+        return $this->successResponse([
+            'path' => $path,
+            'url' => $url,
+            'filename' => $filename,
+        ], 'تم رفع وحفظ الصورة بنجاح');
     }
 }

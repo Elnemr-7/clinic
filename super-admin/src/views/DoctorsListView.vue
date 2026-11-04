@@ -53,6 +53,14 @@
               <div class="font-bold text-content-primary">{{ doc.name }}</div>
               <div class="text-[11px] text-content-muted">{{ doc.title_ar || 'طبيب' }}</div>
               <div class="text-[10px] text-brand font-mono mt-0.5">{{ doc.subdomain }}.platform.com</div>
+              <div class="mt-1 flex items-center gap-1">
+                <span
+                  class="text-[9px] font-bold px-1.5 py-0.5 rounded border"
+                  :class="getDoctorWebsiteBadge(doc).classes"
+                >
+                  {{ getDoctorWebsiteBadge(doc).label }}
+                </span>
+              </div>
             </td>
             <td class="p-3.5">
               <span class="inline-block px-2 py-0.5 rounded-lg text-[10px] font-bold bg-surface-elevated text-content-primary border border-line-subtle">
@@ -189,6 +197,40 @@ const confirmDelete = async (doc) => {
   } catch (err) {
     showError('فشل الحذف', err.response?.data?.message || 'حدث خطأ أثناء محاولة حذف الطبيب');
   }
+};
+
+const getDoctorWebsiteBadge = (doc) => {
+  let mode = doc.website_settings?.website_mode;
+  if (!mode) {
+    if (doc.is_custom_standalone_website && doc.custom_domain) mode = 4;
+    else if (doc.is_custom_standalone_website) mode = 3;
+    else if (doc.custom_domain) mode = 2;
+    else mode = 1;
+  }
+  mode = Number(mode);
+
+  if (mode === 4) {
+    return {
+      label: `VIP 4: موقع مخصص + ${doc.custom_domain || 'دومين خاص'}`,
+      classes: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    };
+  }
+  if (mode === 3) {
+    return {
+      label: 'VIP 3: موقع مخصص (كود خاص)',
+      classes: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    };
+  }
+  if (mode === 2) {
+    return {
+      label: `نموذج 2: قالب المنصة + ${doc.custom_domain || 'دومين خاص'}`,
+      classes: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+    };
+  }
+  return {
+    label: 'نموذج 1: قالب المنصة القياسي',
+    classes: 'bg-slate-800 text-slate-300 border-slate-700',
+  };
 };
 
 const handleDoctorCreated = () => {

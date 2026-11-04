@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { 
   Sparkles, Award, MapPin, ShieldCheck, CheckCircle2, Clock, Calendar, 
   Phone, Star, HeartHandshake, Zap, Activity, Users, ArrowDown, ChevronRight, 
@@ -15,7 +15,7 @@ const props = defineProps({
 });
 
 // Clinical services
-const services = [
+const defaultServices = [
   {
     id: 'endoscopy',
     name: 'مناظير الجهاز الهضمي والقولون التشخيصية والعلاجية',
@@ -66,8 +66,23 @@ const services = [
   },
 ];
 
+const services = computed(() => {
+  const customList = props.tenant?.website_settings?.services_list;
+  if (Array.isArray(customList) && customList.length > 0) {
+    return customList.map((item, idx) => ({
+      id: `custom-${idx}`,
+      name: item.title,
+      duration: 'كشف وفحص متخصص',
+      badge: item.badge || 'خدمة متميزة',
+      desc: item.description || '',
+      points: [item.title, item.badge || 'رعاية متكاملة'],
+    }));
+  }
+  return defaultServices;
+});
+
 // Tech & Clinical Quality
-const clinicalFeatures = [
+const defaultClinicalFeatures = [
   {
     title: 'وحدة مناظير الجهاز الهضمي المتقدمة',
     desc: 'أحدث أنظمة المناظير المرنة عالية الدقة بدقة 4K مع خاصية الصبغة الرقمية (NBI) للكشف المبكر عن أدق التغيرات المخاطية.',
@@ -91,7 +106,7 @@ const clinicalFeatures = [
 ];
 
 // Patient Testimonials
-const reviews = [
+const defaultReviews = [
   {
     name: 'الحاج مصطفى النجار',
     treatment: 'متابعة سكري وضغط وفحص شامل',
@@ -116,7 +131,7 @@ const reviews = [
 ];
 
 // FAQs
-const faqs = [
+const defaultFaqs = [
   {
     q: 'هل منظار المعدة أو القولون يسبب ألماً؟',
     a: 'يتم إجراء مناظير الجهاز الهضمي تحت تأثير مهدئ وريدي قصير المفعول (Sedation) تحت إشراف طبي كامل، بحيث ينام المريض براحة تامة ولا يشعر بأي ألم أو انزعاج طوال فترة الفحص.',
@@ -138,6 +153,31 @@ const faqs = [
     open: false
   },
 ];
+
+// Content Accessors
+const c = computed(() => props.tenant?.website_settings?.content || {});
+const ws = computed(() => props.tenant?.website_settings || {});
+
+const clinicalFeatures = computed(() => {
+  if (Array.isArray(c.value.tech?.features) && c.value.tech.features.length > 0) {
+    return c.value.tech.features;
+  }
+  return defaultClinicalFeatures;
+});
+
+const reviews = computed(() => {
+  if (Array.isArray(c.value.reviews?.items) && c.value.reviews.items.length > 0) {
+    return c.value.reviews.items;
+  }
+  return defaultReviews;
+});
+
+const faqs = computed(() => {
+  if (Array.isArray(c.value.faqs?.items) && c.value.faqs.items.length > 0) {
+    return c.value.faqs.items;
+  }
+  return defaultFaqs;
+});
 
 const openFaqIndex = ref(0);
 
@@ -161,12 +201,12 @@ const scrollToBooking = (serviceName = '') => {
         <div class="flex items-center gap-4 text-slate-300">
           <div class="flex items-center gap-1.5">
             <Clock class="w-3.5 h-3.5 text-teal-400 shrink-0" />
-            <span>مواعيد العيادة: السبت إلى الخميس (فترات صباحية ومسائية)</span>
+            <span>{{ c.top_bar?.hours || 'مواعيد العيادة: السبت إلى الخميس (فترات صباحية ومسائية)' }}</span>
           </div>
           <span class="hidden md:inline text-slate-600">•</span>
           <div class="hidden md:flex items-center gap-1.5">
             <ShieldCheck class="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>رعاية باطنية استشارية قائمة على أحدث البروتوكولات</span>
+            <span>{{ c.top_bar?.notice || 'رعاية باطنية استشارية قائمة على أحدث البروتوكولات' }}</span>
           </div>
         </div>
 
@@ -178,7 +218,7 @@ const scrollToBooking = (serviceName = '') => {
             class="inline-flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 transition font-medium"
           >
             <MessageSquare class="w-3.5 h-3.5" />
-            <span>استشارة واتساب سريعة</span>
+            <span>{{ c.top_bar?.whatsapp_btn || 'استشارة واتساب سريعة' }}</span>
           </a>
           <span class="text-slate-700">|</span>
           <a 
@@ -206,7 +246,7 @@ const scrollToBooking = (serviceName = '') => {
             <div class="flex items-center gap-2">
               <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-snug">{{ tenant.name }}</h1>
               <span class="hidden sm:inline-block px-2.5 py-0.5 bg-teal-50 text-teal-800 text-[11px] font-bold rounded-full border border-teal-200">
-                استشاري معتمد
+                {{ c.header?.badge || 'استشاري معتمد' }}
               </span>
             </div>
             <p class="text-xs text-teal-700 font-semibold mt-0.5">
@@ -231,7 +271,7 @@ const scrollToBooking = (serviceName = '') => {
           class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-700 hover:to-cyan-800 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-md shadow-teal-600/25 flex items-center gap-2 active:scale-95"
         >
           <Calendar class="w-4 h-4" />
-          <span>احجز كشفك الآن</span>
+          <span>{{ c.header?.booking_btn || 'احجز كشفك الآن' }}</span>
         </a>
       </div>
     </header>
@@ -246,34 +286,34 @@ const scrollToBooking = (serviceName = '') => {
         <div class="lg:col-span-7 space-y-6">
           <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-100 text-teal-900 text-xs sm:text-sm font-bold border border-teal-200 shadow-xs">
             <Sparkles class="w-4 h-4 text-teal-700 shrink-0" />
-            <span>تشخيص دقيق وعلاج متقدم • رعاية باطنية استشارية موثوقة</span>
+            <span>{{ c.hero?.pill || 'تشخيص دقيق وعلاج متقدم • رعاية باطنية استشارية موثوقة' }}</span>
           </div>
 
           <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 leading-[1.3] tracking-tight">
-            صحتك أمانة تستحق تشخيصاً دقيقاً ورعاية طبية مستدامة
+            {{ c.hero?.title || tenant.website_settings?.hero_title || 'صحتك أمانة تستحق تشخيصاً دقيقاً ورعاية طبية مستدامة' }}
           </h2>
 
           <p class="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl font-normal">
-            نقدم لك رعاية طبية متكاملة في تشخيص وعلاج أمراض الباطنة العامة، أمراض الجهاز الهضمي والكبد، ومتابعة الأمراض المزمنة بأحدث البروتوكولات السريرية الدولية.
+            {{ c.hero?.subtitle || tenant.website_settings?.hero_subtitle || 'نقدم لك رعاية طبية متكاملة في تشخيص وعلاج أمراض الباطنة العامة، أمراض الجهاز الهضمي والكبد، ومتابعة الأمراض المزمنة بأحدث البروتوكولات السريرية الدولية.' }}
           </p>
 
           <!-- Authority Metrics (4 Badges) -->
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div class="p-3 bg-white rounded-2xl border border-teal-100 shadow-xs text-center">
-              <span class="block text-2xl font-black text-teal-700">+15</span>
-              <span class="text-xs font-semibold text-slate-600">سنة خبرة استشارية</span>
+              <span class="block text-2xl font-black text-teal-700">{{ c.metrics?.[0]?.value || `+${tenant.website_settings?.experience_years || 15}` }}</span>
+              <span class="text-xs font-semibold text-slate-600">{{ c.metrics?.[0]?.label || 'سنة خبرة استشارية' }}</span>
             </div>
             <div class="p-3 bg-white rounded-2xl border border-teal-100 shadow-xs text-center">
-              <span class="block text-2xl font-black text-teal-700">+25,000</span>
-              <span class="text-xs font-semibold text-slate-600">حالة تم علاجها</span>
+              <span class="block text-2xl font-black text-teal-700">{{ c.metrics?.[1]?.value || '+25,000' }}</span>
+              <span class="text-xs font-semibold text-slate-600">{{ c.metrics?.[1]?.label || 'حالة تم علاجها' }}</span>
             </div>
             <div class="p-3 bg-white rounded-2xl border border-teal-100 shadow-xs text-center">
-              <span class="block text-2xl font-black text-teal-700">99.4%</span>
-              <span class="text-xs font-semibold text-slate-600">نسبة رضا المرضى</span>
+              <span class="block text-2xl font-black text-teal-700">{{ c.metrics?.[2]?.value || '99.4%' }}</span>
+              <span class="text-xs font-semibold text-slate-600">{{ c.metrics?.[2]?.label || 'نسبة رضا المرضى' }}</span>
             </div>
             <div class="p-3 bg-white rounded-2xl border border-teal-100 shadow-xs text-center">
-              <span class="block text-2xl font-black text-teal-700">100%</span>
-              <span class="text-xs font-semibold text-slate-600">دقة تشخيصية</span>
+              <span class="block text-2xl font-black text-teal-700">{{ c.metrics?.[3]?.value || '100%' }}</span>
+              <span class="text-xs font-semibold text-slate-600">{{ c.metrics?.[3]?.label || 'دقة تشخيصية' }}</span>
             </div>
           </div>
 
@@ -284,7 +324,7 @@ const scrollToBooking = (serviceName = '') => {
               class="px-6 py-3.5 bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-700 hover:to-cyan-800 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-lg shadow-teal-600/25 transition active:scale-95 flex items-center gap-2"
             >
               <Calendar class="w-4 h-4" />
-              <span>احجز كشفك الآن أونلاين</span>
+              <span>{{ c.hero?.booking_btn || 'احجز كشفك الآن أونلاين' }}</span>
             </a>
 
             <a 
@@ -294,7 +334,7 @@ const scrollToBooking = (serviceName = '') => {
               class="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-lg shadow-emerald-500/25 transition active:scale-95 flex items-center gap-2"
             >
               <MessageSquare class="w-4 h-4" />
-              <span>محادثة واتساب مباشرة</span>
+              <span>{{ c.hero?.whatsapp_btn || 'محادثة واتساب مباشرة' }}</span>
             </a>
           </div>
 
@@ -305,8 +345,8 @@ const scrollToBooking = (serviceName = '') => {
                 <HeartPulse class="w-5 h-5" />
               </div>
               <div>
-                <p class="text-xs font-bold text-slate-900 leading-snug">متابعة دقيقة</p>
-                <p class="text-[11px] text-slate-500 font-medium">للسكر والضغط والكلى</p>
+                <p class="text-xs font-bold text-slate-900 leading-snug">{{ c.highlights?.[0]?.title || 'متابعة دقيقة' }}</p>
+                <p class="text-[11px] text-slate-500 font-medium">{{ c.highlights?.[0]?.subtitle || 'للسكر والضغط والكلى' }}</p>
               </div>
             </div>
 
@@ -315,8 +355,8 @@ const scrollToBooking = (serviceName = '') => {
                 <ShieldCheck class="w-5 h-5" />
               </div>
               <div>
-                <p class="text-xs font-bold text-slate-900 leading-snug">بروتوكولات دولية</p>
-                <p class="text-[11px] text-slate-500 font-medium">علاج قائم على الدليل</p>
+                <p class="text-xs font-bold text-slate-900 leading-snug">{{ c.highlights?.[1]?.title || 'بروتوكولات دولية' }}</p>
+                <p class="text-[11px] text-slate-500 font-medium">{{ c.highlights?.[1]?.subtitle || 'علاج قائم على الدليل' }}</p>
               </div>
             </div>
 
@@ -325,8 +365,8 @@ const scrollToBooking = (serviceName = '') => {
                 <Award class="w-5 h-5" />
               </div>
               <div>
-                <p class="text-xs font-bold text-slate-900 leading-snug">خبرة استشارية</p>
-                <p class="text-[11px] text-slate-500 font-medium">في الباطنة والمناظير</p>
+                <p class="text-xs font-bold text-slate-900 leading-snug">{{ c.highlights?.[2]?.title || 'خبرة استشارية' }}</p>
+                <p class="text-[11px] text-slate-500 font-medium">{{ c.highlights?.[2]?.subtitle || 'في الباطنة والمناظير' }}</p>
               </div>
             </div>
           </div>
@@ -386,32 +426,32 @@ const scrollToBooking = (serviceName = '') => {
           <div class="lg:col-span-7 space-y-5">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-xs font-bold border border-teal-200">
               <Award class="w-4 h-4 text-teal-600" />
-              <span>منهجية التشخيص والعلاج</span>
+              <span>{{ c.about?.badge || 'منهجية التشخيص والعلاج' }}</span>
             </div>
 
             <h3 class="text-2xl sm:text-3xl font-black text-slate-900 leading-tight">
-              التشخيص الدقيق هو نصف العلاج، وصحة مريضنا أولويتنا المطلقة
+              {{ c.about?.headline || 'التشخيص الدقيق هو نصف العلاج، وصحة مريضنا أولويتنا المطلقة' }}
             </h3>
 
             <p class="text-sm text-slate-600 leading-relaxed">
-              نولي كل مريض الوقت الكافي للاستماع لكافة تفاصيل شكواه وتاريخه المرضي، ونجري الفحص السريري الدقيق والفحوصات التكميلية الموجهة فقط دون إرهاق المريض بتحاليل غير ضرورية، مع وضع خطة علاجية مخصصة ومتابعة مستمرة لتطور حالته.
+              {{ c.about?.desc || 'نولي كل مريض الوقت الكافي للاستماع لكافة تفاصيل شكواه وتاريخه المرضي، ونجري الفحص السريري الدقيق والفحوصات التكميلية الموجهة فقط دون إرهاق المريض بتحاليل غير ضرورية، مع وضع خطة علاجية مخصصة ومتابعة مستمرة لتطور حالته.' }}
             </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                 <h4 class="text-xs font-bold text-slate-900 flex items-center gap-2">
                   <ShieldCheck class="w-4 h-4 text-teal-600" />
-                  <span>علاج قائم على الدليل العلمي</span>
+                  <span>{{ c.about?.card1_title || 'علاج قائم على الدليل العلمي' }}</span>
                 </h4>
-                <p class="text-xs text-slate-500 leading-relaxed">تطبيق بروتوكولات سريرية دولية تضمن أعلى فاعلية علاجية بأقل آثار جانبية ممكنة.</p>
+                <p class="text-xs text-slate-500 leading-relaxed">{{ c.about?.card1_desc || 'تطبيق بروتوكولات سريرية دولية تضمن أعلى فاعلية علاجية بأقل آثار جانبية ممكنة.' }}</p>
               </div>
 
               <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
                 <h4 class="text-xs font-bold text-slate-900 flex items-center gap-2">
                   <Activity class="w-4 h-4 text-teal-600" />
-                  <span>متابعة إلكترونية مستمرة</span>
+                  <span>{{ c.about?.card2_title || 'متابعة إلكترونية مستمرة' }}</span>
                 </h4>
-                <p class="text-xs text-slate-500 leading-relaxed">ربط ملفك الطبي بالنظام الذكي لتذكيرك بمواعيد الاستشارات والتحاليل الدورية.</p>
+                <p class="text-xs text-slate-500 leading-relaxed">{{ c.about?.card2_desc || 'ربط ملفك الطبي بالنظام الذكي لتذكيرك بمواعيد الاستشارات والتحاليل الدورية.' }}</p>
               </div>
             </div>
           </div>
@@ -425,13 +465,13 @@ const scrollToBooking = (serviceName = '') => {
         <div class="text-center max-w-2xl mx-auto space-y-3">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-900 text-xs font-bold">
             <Stethoscope class="w-4 h-4 text-teal-700" />
-            <span>الفحوصات والخدمات العلاجية</span>
+            <span>{{ c.services_section?.badge || 'الفحوصات والخدمات العلاجية' }}</span>
           </div>
           <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
-            رعاية شاملة للجهاز الهضمي والأمراض الباطنية
+            {{ c.services_section?.title || 'رعاية شاملة للجهاز الهضمي والأمراض الباطنية' }}
           </h3>
           <p class="text-xs sm:text-sm text-slate-600">
-            اختر الإجراء أو الفحص المطلوب واحجز كشفك مباشرة للحصول على تقييم سريري شامل.
+            {{ c.services_section?.subtitle || 'اختر الإجراء أو الفحص المطلوب واحجز كشفك مباشرة للحصول على تقييم سريري شامل.' }}
           </p>
         </div>
 
@@ -489,13 +529,13 @@ const scrollToBooking = (serviceName = '') => {
         <div class="text-center max-w-2xl mx-auto space-y-3">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-900 text-xs font-bold">
             <ShieldCheck class="w-4 h-4 text-teal-700" />
-            <span>التجهيزات ومعايير الجودة</span>
+            <span>{{ c.tech_section?.badge || 'التجهيزات ومعايير الجودة' }}</span>
           </div>
           <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
-            تجهيزات طبية متطورة لتشخيص دقيق وسريع
+            {{ c.tech_section?.title || 'تجهيزات طبية متطورة لتشخيص دقيق وسريع' }}
           </h3>
           <p class="text-xs sm:text-sm text-slate-600">
-            تضم عياداتنا أحدث التجهيزات الطبية لمناظير الجهاز الهضمي والسونار لتقديم الرعاية في مكان واحد.
+            {{ c.tech_section?.subtitle || 'تضم عياداتنا أحدث التجهيزات الطبية لمناظير الجهاز الهضمي والسونار لتقديم الرعاية في مكان واحد.' }}
           </p>
         </div>
 
@@ -528,13 +568,13 @@ const scrollToBooking = (serviceName = '') => {
         <div class="text-center max-w-2xl mx-auto space-y-3">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-900 text-xs font-bold">
             <Star class="w-4 h-4 text-teal-700 fill-teal-700" />
-            <span>آراء وتجارب مرضانا</span>
+            <span>{{ c.reviews_section?.badge || 'آراء وتجارب مرضانا' }}</span>
           </div>
           <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
-            ثقة مرضانا شهادة نعتز بها
+            {{ c.reviews_section?.title || 'ثقة مرضانا شهادة نعتز بها' }}
           </h3>
           <p class="text-xs sm:text-sm text-slate-600">
-            تجارب حقيقية لمرضى تلقوا العلاج والمتابعة داخل عياداتنا.
+            {{ c.reviews_section?.subtitle || 'تجارب حقيقية لمرضى تلقوا العلاج والمتابعة داخل عياداتنا.' }}
           </p>
         </div>
 
@@ -546,7 +586,7 @@ const scrollToBooking = (serviceName = '') => {
           >
             <div class="space-y-3">
               <div class="flex items-center gap-1 text-amber-400">
-                <Star v-for="s in rev.rating" :key="s" class="w-4 h-4 fill-amber-400" />
+                <Star v-for="s in (rev.rating || 5)" :key="s" class="w-4 h-4 fill-amber-400" />
               </div>
               <p class="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal italic">
                 "{{ rev.comment }}"
@@ -571,13 +611,13 @@ const scrollToBooking = (serviceName = '') => {
         <div class="text-center max-w-2xl mx-auto space-y-3">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-900 text-xs font-bold">
             <MapPin class="w-4 h-4 text-teal-700" />
-            <span>فروع العيادة ومواعيد العمل</span>
+            <span>{{ c.branches_section?.badge || 'فروع العيادة ومواعيد العمل' }}</span>
           </div>
           <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
-            مواقعنا وساعات الاستقبال
+            {{ c.branches_section?.title || 'مواقعنا وساعات الاستقبال' }}
           </h3>
           <p class="text-xs sm:text-sm text-slate-600">
-            اختر أقرب فرع إليك للاطلاع على مواعيد الاستقبال أو حجز موعدك فوراً.
+            {{ c.branches_section?.subtitle || 'اختر أقرب فرع إليك للاطلاع على مواعيد الاستقبال أو حجز موعدك فوراً.' }}
           </p>
         </div>
 
@@ -646,11 +686,14 @@ const scrollToBooking = (serviceName = '') => {
         <div class="text-center space-y-3">
           <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-100 text-teal-900 text-xs font-bold">
             <Sparkles class="w-4 h-4 text-teal-700" />
-            <span>الأسئلة الشائعة وإجابات الطبيب</span>
+            <span>{{ c.faq_section?.badge || 'الأسئلة الشائعة وإجابات الطبيب' }}</span>
           </div>
           <h3 class="text-2xl sm:text-3xl font-black text-slate-900">
-            كل ما يهمك معرفته قبل زيارة العيادة
+            {{ c.faq_section?.title || 'كل ما يهمك معرفته قبل زيارة العيادة' }}
           </h3>
+          <p class="text-xs sm:text-sm text-slate-600">
+            {{ c.faq_section?.subtitle || 'إجابات وافية على أكثر الأسئلة شيوعاً حول الفحوصات والتحضير للكشف' }}
+          </p>
         </div>
 
         <div class="space-y-3">
@@ -693,8 +736,36 @@ const scrollToBooking = (serviceName = '') => {
             </div>
           </div>
           <p class="text-xs text-slate-400 leading-relaxed max-w-sm font-normal">
-            عيادة باطنية وجهاز هضمي متخصصة ومجهزة بأحدث مناظير الجهاز الهضمي والتشخيص السوناري المتقدم لتقديم أعلى مستويات الرعاية الصحية.
+            {{ c.footer?.about || 'عيادة باطنية وجهاز هضمي متخصصة ومجهزة بأحدث مناظير الجهاز الهضمي والتشخيص السوناري المتقدم لتقديم أعلى مستويات الرعاية الصحية.' }}
           </p>
+
+          <!-- Social Links -->
+          <div v-if="tenant.website_settings?.social_links" class="flex items-center gap-2 pt-2">
+            <a
+              v-if="tenant.website_settings.social_links.facebook"
+              :href="tenant.website_settings.social_links.facebook"
+              target="_blank"
+              class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white text-xs font-bold transition inline-flex items-center gap-1"
+            >
+              <span>Facebook</span>
+            </a>
+            <a
+              v-if="tenant.website_settings.social_links.instagram"
+              :href="tenant.website_settings.social_links.instagram"
+              target="_blank"
+              class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-300 hover:text-white text-xs font-bold transition inline-flex items-center gap-1"
+            >
+              <span>Instagram</span>
+            </a>
+            <a
+              v-if="tenant.website_settings.social_links.youtube"
+              :href="tenant.website_settings.social_links.youtube"
+              target="_blank"
+              class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white text-xs font-bold transition inline-flex items-center gap-1"
+            >
+              <span>YouTube</span>
+            </a>
+          </div>
         </div>
 
         <div class="md:col-span-3 space-y-3 text-xs text-slate-400">

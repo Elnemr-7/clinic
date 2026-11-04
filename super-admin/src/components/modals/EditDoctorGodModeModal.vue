@@ -120,6 +120,81 @@
 
         <!-- TAB 4: Domain & Website -->
         <div v-if="currentTab === 'domain'" class="space-y-4">
+          <!-- 4 Website Modes Selector -->
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-2">نموذج موقع الطبيب (Website Hosting Mode)</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                @click="form.website_mode = 1"
+                :class="[
+                  'p-3 rounded-xl border text-right transition cursor-pointer',
+                  form.website_mode === 1
+                    ? 'border-amber-500 bg-amber-500/10 text-white shadow-sm'
+                    : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                ]"
+              >
+                <div class="font-bold text-xs flex items-center justify-between">
+                  <span>1. قالب المنصة + رابط المنصة</span>
+                  <span v-if="form.website_mode === 1" class="text-amber-400 font-bold">✓</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">الوضع الافتراضي لجميع الأطباء</div>
+              </button>
+
+              <button
+                type="button"
+                @click="form.website_mode = 2"
+                :class="[
+                  'p-3 rounded-xl border text-right transition cursor-pointer',
+                  form.website_mode === 2
+                    ? 'border-amber-500 bg-amber-500/10 text-white shadow-sm'
+                    : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                ]"
+              >
+                <div class="font-bold text-xs flex items-center justify-between">
+                  <span>2. قالب المنصة + دومين خاص</span>
+                  <span v-if="form.website_mode === 2" class="text-amber-400 font-bold">✓</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">قالب المنصة مع CNAME</div>
+              </button>
+
+              <button
+                type="button"
+                @click="form.website_mode = 3"
+                :class="[
+                  'p-3 rounded-xl border text-right transition cursor-pointer',
+                  form.website_mode === 3
+                    ? 'border-purple-500 bg-purple-500/10 text-white shadow-sm'
+                    : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                ]"
+              >
+                <div class="font-bold text-xs text-purple-400 flex items-center justify-between">
+                  <span>3. موقع مخصص + رابط المنصة (VIP)</span>
+                  <span v-if="form.website_mode === 3" class="text-purple-400 font-bold">✓</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">كود مخصص في فولدر الطبيب</div>
+              </button>
+
+              <button
+                type="button"
+                @click="form.website_mode = 4"
+                :class="[
+                  'p-3 rounded-xl border text-right transition cursor-pointer',
+                  form.website_mode === 4
+                    ? 'border-purple-500 bg-purple-500/10 text-white shadow-sm'
+                    : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                ]"
+              >
+                <div class="font-bold text-xs text-purple-400 flex items-center justify-between">
+                  <span>4. موقع مخصص + دومين خاص (VIP)</span>
+                  <span v-if="form.website_mode === 4" class="text-purple-400 font-bold">✓</span>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">كود مخصص + دومين العيادة المستقل</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Subdomain Field (Always editable) -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-2">الرابط الفرعي (Subdomain)</label>
             <div class="flex items-center gap-2" dir="ltr">
@@ -131,15 +206,37 @@
                 class="flex-1 bg-slate-900 border border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl px-4 py-2 text-sm text-white font-mono"
               />
             </div>
-            <p class="text-[11px] text-slate-400 mt-1.5 text-right">يمكنك تعديل اسم النطاق الفرعي للطبيب (يجب أن يكون فريداً وباللغة الإنجليزية).</p>
+            <p class="text-[11px] text-slate-400 mt-1.5 text-right">اسم النطاق الفرعي للطبيب (يجب أن يكون فريداً وباللغة الإنجليزية).</p>
           </div>
 
-          <div>
+          <!-- Custom Site Code Folder Info (If Mode 3 or 4) -->
+          <div v-if="[3, 4].includes(form.website_mode)" class="bg-purple-950/40 p-4 rounded-xl border border-purple-500/30 space-y-2">
+            <p class="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+              <span>📁</span>
+              <span>مسار كود الموقع المخصص (VIP Custom Site):</span>
+            </p>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              تقوم المنصة بتحميل ملف الموقع الخاص بهذا الطبيب تلقائياً من المجلد:
+            </p>
+            <div class="bg-slate-950 p-2.5 rounded-lg border border-purple-500/20 font-mono text-xs text-amber-300 select-all" dir="ltr">
+              web-platform/custom-sites/{{ form.subdomain || 'slug' }}/index.vue
+            </div>
+          </div>
+
+          <!-- Custom Domain Field (Visible for Mode 2 & 4) -->
+          <div v-if="[2, 4].includes(form.website_mode)">
             <label class="block text-xs font-medium text-slate-300 mb-2">الدومين المخصص (Custom Domain via Cloudflare)</label>
-            <input v-model="form.custom_domain" placeholder="مثال: drahmedclinic.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white" />
+            <input
+              v-model="form.custom_domain"
+              placeholder="مثال: drahmedclinic.com"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white font-mono"
+              dir="ltr"
+            />
+            <p class="text-[11px] text-slate-400 mt-1">يجب توجيه سجل CNAME إلى cname.platform.com لدى مزود الدومين.</p>
           </div>
 
-          <div>
+          <!-- Template Key (For Modes 1 & 2) -->
+          <div v-if="[1, 2].includes(form.website_mode)">
             <label class="block text-xs font-medium text-slate-300 mb-2">قالب التخصص المطبق (Specialty Template)</label>
             <select v-model="form.template_key" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white">
               <option value="general">عام وباطنة (General / Polyclinic)</option>
@@ -151,11 +248,12 @@
             </select>
           </div>
 
+          <!-- Public Booking API Key (For Custom Sites & Integrations) -->
           <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
             <p class="text-xs font-medium text-slate-300 mb-1">مفتاح الربط للمواقع المخصصة (Public Booking API Key)</p>
             <div class="flex items-center gap-2">
               <input :value="doctor?.public_booking_api_key" readonly class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-amber-300 font-mono" />
-              <button @click="copyApiKey" type="button" class="bg-slate-800 px-3 py-1.5 rounded-lg text-xs hover:bg-slate-700">نسخ</button>
+              <button @click="copyApiKey" type="button" class="bg-slate-800 px-3 py-1.5 rounded-lg text-xs hover:bg-slate-700 cursor-pointer">نسخ</button>
             </div>
           </div>
         </div>
@@ -221,6 +319,7 @@ const form = ref({
   sms_balance: 0,
   subdomain: '',
   custom_domain: '',
+  website_mode: 1,
   template_key: 'general',
   reset_monthly_whatsapp: false,
   reset_monthly_sms: false,
@@ -231,6 +330,19 @@ watch(
   (doc) => {
     if (doc) {
       isUnlimitedClinics.value = doc.max_clinics_override === -1;
+      let mode = doc.website_settings?.website_mode;
+      if (!mode) {
+        if (doc.is_custom_standalone_website && doc.custom_domain) {
+          mode = 4;
+        } else if (doc.is_custom_standalone_website) {
+          mode = 3;
+        } else if (doc.custom_domain) {
+          mode = 2;
+        } else {
+          mode = 1;
+        }
+      }
+
       form.value = {
         plan_id: doc.plan_id,
         subscription_ends_at: doc.subscription_ends_at ? doc.subscription_ends_at.substring(0, 10) : '',
@@ -241,6 +353,7 @@ watch(
         sms_balance: doc.sms_balance ?? 0,
         subdomain: doc.subdomain || '',
         custom_domain: doc.custom_domain || '',
+        website_mode: Number(mode),
         template_key: doc.template_key || 'general',
         reset_monthly_whatsapp: false,
         reset_monthly_sms: false,
@@ -293,7 +406,9 @@ const save = async () => {
       sms_enabled: form.value.sms_enabled,
       sms_balance: form.value.sms_balance,
       subdomain: form.value.subdomain,
-      custom_domain: form.value.custom_domain || null,
+      website_mode: form.value.website_mode,
+      is_custom_standalone_website: [3, 4].includes(form.value.website_mode),
+      custom_domain: [2, 4].includes(form.value.website_mode) ? (form.value.custom_domain || null) : null,
       template_key: form.value.template_key,
       reset_monthly_whatsapp: form.value.reset_monthly_whatsapp,
       reset_monthly_sms: form.value.reset_monthly_sms,

@@ -128,6 +128,8 @@ Route::prefix('clinic')->group(function () {
             Route::get('/whatsapp-qr', [\App\Http\Controllers\Clinic\SettingsController::class, 'getQrCode']);
             Route::post('/topup', [\App\Http\Controllers\Clinic\SettingsController::class, 'requestTopup']);
             Route::post('/custom-domain', [\App\Http\Controllers\Clinic\SettingsController::class, 'updateCustomDomain']);
+            Route::post('/website', [\App\Http\Controllers\Clinic\SettingsController::class, 'saveWebsiteSettings']);
+            Route::post('/upload-image', [\App\Http\Controllers\Clinic\SettingsController::class, 'uploadImage']);
         });
     });
 });

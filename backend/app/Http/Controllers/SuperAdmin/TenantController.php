@@ -82,7 +82,10 @@ class TenantController extends Controller
                 'sms_balance' => (int)($validated['sms_balance'] ?? ($plan?->free_sms_quota_monthly ?? 0)),
                 'public_booking_api_key' => 'pbk_' . Str::random(32),
                 'template_key' => $specialtyKey,
+                'is_custom_standalone_website' => false,
+                'custom_domain' => null,
                 'website_settings' => [
+                    'website_mode' => 1,
                     'primary_color' => '#0F766E',
                     'secondary_color' => '#0F172A',
                     'about_text' => 'عيادة ' . $validated['name'],
@@ -194,7 +197,26 @@ class TenantController extends Controller
             unset($validated['reset_monthly_sms']);
         }
 
-        $tenant->update(array_filter($validated, fn($val) => !is_null($val)));
+        if ($request->has('website_mode')) {
+            $mode = (int)$request->input('website_mode');
+            $settings = $tenant->website_settings ?? [];
+            $settings['website_mode'] = $mode;
+            if ($request->has('custom_website_url')) {
+                $settings['custom_website_url'] = $request->input('custom_website_url');
+            }
+            $tenant->website_settings = $settings;
+            $validated['is_custom_standalone_website'] = in_array($mode, [3, 4], true);
+            if (in_array($mode, [1, 3], true)) {
+                $tenant->custom_domain = null;
+            }
+        }
+
+        if (array_key_exists('custom_domain', $validated) && in_array($tenant->website_settings['website_mode'] ?? 1, [2, 4], true)) {
+            $tenant->custom_domain = $validated['custom_domain'] ?: null;
+        }
+
+        $tenant->fill(array_filter($validated, fn($val) => !is_null($val)));
+        $tenant->save();
 
         return $this->successResponse($tenant, 'تم تحديث بيانات الطبيب بنجاح');
     }
