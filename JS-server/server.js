@@ -87,7 +87,7 @@ app.use(express.json());
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Shared-Secret, X-Server-Token');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Shared-Secret, X-Internal-Secret, X-Server-Token');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
@@ -98,7 +98,7 @@ app.use((req, res, next) => {
 
     const tokenHeader = req.headers['x-server-token'] || 
         (req.headers['authorization']?.startsWith('Bearer ') ? req.headers['authorization'].slice(7) : null);
-    const secretHeader = req.headers['x-shared-secret'];
+    const secretHeader = req.headers['x-internal-secret'] || req.headers['x-shared-secret'];
 
     // 1. Verify 5-minute rotating token
     if (tokenHeader) {
@@ -112,7 +112,17 @@ app.use((req, res, next) => {
     }
 
     // 2. Allow direct pre-shared secret fallback for server bootstrap
-    if (SHARED_SECRET && secretHeader === SHARED_SECRET) {
+    const internalSecret = process.env.INTERNAL_API_SECRET || SHARED_SECRET;
+    if (internalSecret && secretHeader) {
+        try {
+            const bufA = Buffer.from(String(secretHeader));
+            const bufB = Buffer.from(String(internalSecret));
+            if (bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB)) {
+                return next();
+            }
+        } catch (e) {}
+    }
+    if (false) {
         return next();
     }
 
@@ -261,6 +271,7 @@ async function startSession(sessionId, meta = {}) {
             sessionEntry.status = 'disconnected';
             sessionEntry.readyForPairing = false;
             delete activeSessions[sessionId];
+    delete reconnectAttempts[sessionId];
 
             if (!shouldReconnect) {
                 delete reconnectAttempts[sessionId];
@@ -294,7 +305,7 @@ async function startSession(sessionId, meta = {}) {
 
         // 3. Connection open
         else if (connection === 'open') {
-            reconnectAttempts[sessionId] = 0;
+            delete reconnectAttempts[sessionId];
             const rawJid = sock.user?.id || '';
             const formattedNumber = rawJid.split(':')[0] || rawJid.split('@')[0];
 
@@ -672,7 +683,10 @@ app.get(['/api/sessions/:sessionId', '/api/instance/:sessionId'], (req, res) => 
 // Request 8-digit Pairing Code for phone number linking
 app.post(['/api/sessions/pairing-code', '/api/sessions/:sessionId/pairing-code'], async (req, res) => {
     const rawId = req.params?.sessionId || req.body?.session_id || (req.body?.business_id ? `session_${req.body.business_id}` : null);
-    const phoneNumber = String(req.body?.phone_number || '').replace(/[^0-9]/g, '');
+    let phoneNumber = String(req.body?.phone_number || '').replace(/\D/g, '');
+    if (phoneNumber.startsWith('01') && phoneNumber.length === 11) {
+        phoneNumber = '2' + phoneNumber;
+    }
 
     if (!rawId || !phoneNumber) {
         return res.status(400).json({ error: 'Missing session_id or phone_number parameter' });
@@ -746,6 +760,7 @@ const handleLogout = async (req, res) => {
     }
 
     delete activeSessions[sessionId];
+    delete reconnectAttempts[sessionId];
     invalidateSessionCache(sessionId);
 
     const sessionDir = getSessionDir(sessionId);
@@ -783,19 +798,43 @@ const io = new Server(server, {
 });
 
 io.on('connection', (socket) => {
-    socket.on('join_clinic', (clinicId) => {
-        if (clinicId) socket.join(`clinic_${clinicId}`);
+    socket.on('join_clinic', (payload) => {
+        let clinicId = payload;
+        let token = null;
+        if (typeof payload === 'object' && payload !== null) {
+            clinicId = payload.clinicId || payload.clinic_id;
+            token = payload.token;
+        }
+
+        if (!clinicId) return;
+
+        // Verify HMAC token for private clinic room
+        const expectedToken = crypto
+            .createHmac('sha256', SHARED_SECRET)
+            .update(`clinic_${clinicId}`)
+            .digest('hex');
+
+        if (token && token === expectedToken) {
+            socket.join(`clinic_${clinicId}`);
+            socket.emit('joined_clinic', { clinicId, success: true });
+        } else {
+            console.warn(`[Socket] Unauthorized join_clinic attempt for clinic_${clinicId}`);
+            socket.emit('error', { message: 'Unauthorized: Invalid clinic room token' });
+        }
     });
 
-    socket.on('join_tv', (tvCode) => {
+    socket.on('join_tv', (data) => {
+        const tvCode = typeof data === 'object' ? (data?.tvCode || data?.tv_code) : data;
         if (tvCode) socket.join(`tv_${tvCode}`);
     });
 
-    socket.on('join_track', (refCode) => {
+    socket.on('join_track', (data) => {
+        const refCode = typeof data === 'object' ? (data?.referenceCode || data?.refCode || data?.reference_code) : data;
         if (refCode) socket.join(`track_${refCode}`);
     });
 
-    socket.on('leave_clinic', (clinicId) => {
+    socket.on('leave_clinic', (payload) => {
+        const clinicId = typeof payload === 'object' ? (payload?.clinicId || payload?.clinic_id) : payload;
         if (clinicId) socket.leave(`clinic_${clinicId}`);
     });
 });

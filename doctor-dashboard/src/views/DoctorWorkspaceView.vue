@@ -1,11 +1,30 @@
 <template>
-  <div class="h-full p-2.5 lg:p-3.5 overflow-hidden text-right select-none font-sans" dir="rtl">
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 h-full min-h-0 overflow-hidden">
+  <div class="max-w-[1600px] mx-auto w-full p-3 lg:p-5 pb-24 lg:pb-32 select-none text-right font-sans min-w-0" dir="rtl">
+    
+    <!-- Zero Clinics Onboarding Alert -->
+    <div v-if="!hasClinics" class="mb-4 p-4 rounded-2xl bg-brand/10 border border-brand/30 flex flex-col md:flex-row items-center justify-between gap-3 text-content-primary shadow-xs">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">🏥</span>
+        <div>
+          <h4 class="font-black text-sm text-content-primary">أهلاً بك يا دكتور! لم تقم بإنشاء أي عيادة أو فرع حتى الآن</h4>
+          <p class="text-xs text-content-muted mt-0.5">ابدأ بإضافة بيانات عيادتك الأولى وتحديد فترات العمل ومواعيد الكشف لتتمكن من تشغيل العيادة واستقبال المرضى.</p>
+        </div>
+      </div>
+      <router-link
+        to="/settings/branches"
+        class="px-5 py-2.5 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl font-bold text-xs inline-flex items-center gap-2 shadow-sm transition shrink-0 cursor-pointer"
+      >
+        <span>+</span>
+        <span>إضافة أول عيادة الآن</span>
+      </router-link>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 w-full items-start">
       
       <!-- ======================================================== -->
-      <!-- RIGHT SIDEBAR (3 Cols): Live Queue & Next Patient Rail  -->
+      <!-- RIGHT SIDEBAR (3-4 Cols): Live Queue & Next Patient Rail -->
       <!-- ======================================================== -->
-      <aside class="col-span-12 lg:col-span-3 h-full min-h-0 flex flex-col bg-surface-card border border-line-subtle rounded-2xl shadow-xs overflow-hidden">
+      <aside class="col-span-12 lg:col-span-4 xl:col-span-3 lg:sticky lg:top-3 flex flex-col bg-surface-card border border-line-subtle rounded-2xl shadow-xs overflow-hidden order-first">
         
         <!-- Rail Header: Current Patient in Room -->
         <div class="p-3.5 border-b border-line-subtle bg-surface-elevated/60">
@@ -38,7 +57,7 @@
         </div>
 
         <!-- Scrollable Middle Rail: Waiting Room & Postponed Lists -->
-        <div class="flex-1 overflow-y-auto p-3 space-y-3 divide-y divide-line-subtle">
+        <div class="max-h-[220px] xl:max-h-[340px] overflow-y-auto p-3 space-y-3 divide-y divide-line-subtle">
           <!-- Waiting List Section -->
           <div>
             <div class="flex items-center justify-between mb-2 px-1">
@@ -129,9 +148,9 @@
       </aside>
 
       <!-- ======================================================== -->
-      <!-- MAIN CONSULTATION COCKPIT (9 Cols): Zero-Scroll Cockpit   -->
+      <!-- MAIN CONSULTATION COCKPIT (8-9 Cols): Smooth Scroll      -->
       <!-- ======================================================== -->
-      <main class="col-span-12 lg:col-span-9 h-full min-h-0 flex flex-col gap-2 overflow-y-auto lg:overflow-hidden pr-0.5">
+      <div class="col-span-12 lg:col-span-8 xl:col-span-9 flex flex-col gap-3.5 min-w-0">
         
         <template v-if="workspaceStore.currentPatient">
           <!-- 1. Critical Medical Alert Bar -->
@@ -148,8 +167,8 @@
             :previous-vitals="workspaceStore.previousVitals"
           />
 
-          <!-- 3. THE 4 CLINICAL ACTION CARDS (2x2 Bento Grid - Equal Height) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 flex-1 min-h-0 items-stretch">
+          <!-- 3. THE 4 CLINICAL ACTION CARDS (2x2 Bento Grid) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 w-full">
             
             <!-- CARD 1: Medical History (Alt+1) -->
             <div class="bg-surface-card border border-line-subtle hover:border-brand/50 rounded-2xl p-3 shadow-xs flex flex-col justify-between transition-all">
@@ -356,7 +375,7 @@
           </button>
         </div>
 
-      </main>
+      </div>
     </div>
 
     <!-- Modals with dirty backdrop close guard -->
@@ -394,6 +413,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useDoctorWorkspaceStore } from '../stores/doctorWorkspace';
 import { useReceptionQueueStore } from '../stores/receptionQueue';
+import { useSettingsStore } from '../stores/settings';
 import ActivePatientCard from '../components/doctor/ActivePatientCard.vue';
 import MedicalAlertBanner from '../components/doctor/MedicalAlertBanner.vue';
 import VitalsStrip from '../components/doctor/VitalsStrip.vue';
@@ -418,6 +438,13 @@ import {
 const authStore = useAuthStore();
 const workspaceStore = useDoctorWorkspaceStore();
 const queueStore = useReceptionQueueStore();
+const settingsStore = useSettingsStore();
+
+const hasClinics = computed(() => {
+  if (authStore.user?.tenant?.clinics?.length) return true;
+  if (authStore.clinic) return true;
+  return (settingsStore.branches?.length || 0) > 0;
+});
 
 const showHistoryModal = ref(false);
 const showPrescriptionModal = ref(false);
@@ -513,23 +540,25 @@ const handleQuickPrint = () => {
   }
 };
 
-// Keyboard Shortcuts (Alt+1, Alt+2, Alt+3, Alt+4, Alt+N)
+// Keyboard Shortcuts (Alt+1, Alt+2, Alt+3, Alt+4, Alt+N) - with Arabic keyboard & e.code support
 const handleKeyDown = (e) => {
   if (!e.altKey) return;
-  const key = e.key.toLowerCase();
-  if (key === '1') {
+  const key = e.key ? e.key.toLowerCase() : '';
+  const code = e.code || '';
+
+  if (key === '1' || code === 'Digit1' || code === 'Numpad1') {
     e.preventDefault();
     showHistoryModal.value = true;
-  } else if (key === '2') {
+  } else if (key === '2' || code === 'Digit2' || code === 'Numpad2') {
     e.preventDefault();
     showPrescriptionModal.value = true;
-  } else if (key === '3') {
+  } else if (key === '3' || code === 'Digit3' || code === 'Numpad3') {
     e.preventDefault();
     showLabsModal.value = true;
-  } else if (key === '4') {
+  } else if (key === '4' || code === 'Digit4' || code === 'Numpad4') {
     e.preventDefault();
     showExtraModal.value = true;
-  } else if (key === 'n') {
+  } else if (key === 'n' || code === 'KeyN' || key === 'ى') {
     e.preventDefault();
     handleNextPatient();
   }
@@ -537,7 +566,10 @@ const handleKeyDown = (e) => {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
-  await refreshWorkspace();
+  await Promise.all([
+    refreshWorkspace(),
+    settingsStore.fetchBranches(),
+  ]);
   if (workspaceStore.currentPatient?.patient?.id) {
     workspaceStore.fetchPatientHistory(workspaceStore.currentPatient.patient.id);
   }

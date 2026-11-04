@@ -169,7 +169,7 @@ class DoctorWorkspaceController extends Controller
         $tenantId = $request->user()->tenant_id;
         $appointment = Appointment::where('tenant_id', $tenantId)->findOrFail($appointmentId);
 
-        $labs = $request->input('requested_labs', []);
+        $labs = $request->input('requested_labs', $request->input('lab_requests', []));
 
         // Auto-save unknown lab tests into doctor_lab_tests
         foreach ($labs as $test) {
@@ -204,7 +204,7 @@ class DoctorWorkspaceController extends Controller
         $tenantId = $request->user()->tenant_id;
         $appointment = Appointment::where('tenant_id', $tenantId)->findOrFail($appointmentId);
 
-        $services = $request->input('selected_services', []);
+        $services = $request->input('selected_services', $request->input('extra_services_billed', []));
         $serviceIds = $request->input('service_ids', []);
 
         if (empty($services) && !empty($serviceIds)) {

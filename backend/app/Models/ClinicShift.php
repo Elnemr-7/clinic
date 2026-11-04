@@ -13,6 +13,27 @@ class ClinicShift extends Model
 
     protected $guarded = ['id'];
 
+    protected $appends = ['name', 'day_name'];
+
+    public function getNameAttribute(): ?string
+    {
+        return $this->shift_name_ar;
+    }
+
+    public function getDayNameAttribute(): string
+    {
+        $days = [
+            0 => 'الأحد',
+            1 => 'الإثنين',
+            2 => 'الثلاثاء',
+            3 => 'الأربعاء',
+            4 => 'الخميس',
+            5 => 'الجمعة',
+            6 => 'السبت',
+        ];
+        return $days[$this->day_of_week] ?? '';
+    }
+
     protected function casts(): array
     {
         return [

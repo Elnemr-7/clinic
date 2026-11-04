@@ -40,8 +40,10 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/leads/{id}/convert', [\App\Http\Controllers\SuperAdmin\DoctorLeadController::class, 'convert']);
 
         Route::get('/tenants', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'index']);
+        Route::post('/tenants', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'store']);
         Route::get('/tenants/{id}', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'show']);
         Route::put('/tenants/{id}', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'update']);
+        Route::delete('/tenants/{id}', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'destroy']);
         Route::put('/tenants/{id}/wallet', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'updateWallet']);
         Route::post('/tenants/{id}/impersonate', [\App\Http\Controllers\SuperAdmin\TenantController::class, 'impersonate']);
 
@@ -122,10 +124,13 @@ Route::prefix('clinic')->group(function () {
 
             Route::get('/receptionists', [\App\Http\Controllers\Clinic\SettingsController::class, 'getReceptionists']);
             Route::post('/receptionists', [\App\Http\Controllers\Clinic\SettingsController::class, 'saveReceptionist']);
+            Route::delete('/receptionists/{id}', [\App\Http\Controllers\Clinic\SettingsController::class, 'deleteReceptionist']);
 
             Route::get('/whatsapp-qr', [\App\Http\Controllers\Clinic\SettingsController::class, 'getQrCode']);
             Route::post('/topup', [\App\Http\Controllers\Clinic\SettingsController::class, 'requestTopup']);
             Route::post('/custom-domain', [\App\Http\Controllers\Clinic\SettingsController::class, 'updateCustomDomain']);
+            Route::post('/website', [\App\Http\Controllers\Clinic\SettingsController::class, 'saveWebsiteSettings']);
+            Route::post('/upload-image', [\App\Http\Controllers\Clinic\SettingsController::class, 'uploadImage']);
         });
     });
 });

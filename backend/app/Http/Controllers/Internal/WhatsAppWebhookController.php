@@ -62,9 +62,9 @@ class WhatsAppWebhookController extends Controller
 
             Log::info("WhatsApp Inbound Message for Tenant [{$tenantId}] from [{$senderPhone}]: {$text}");
 
-            // Match booking reference code: e.g. #CLN-4829 or CLN-4829
-            if (preg_match('/(?:حجز|كشف|CLN-)?\s*#?([A-Z0-9]{4,8})/iu', $text, $matches)) {
-                $refCode = $matches[1];
+            // Match booking reference code: e.g. "تفعيل حجز رقم CLN-4829", #CLN-4829 or CLN-4829
+            if (preg_match('/(?:تفعيل\s*)?(?:حجز|كشف)?(?:\s*رقم)?\s*#?\b(CLN-[A-Z0-9]{4,8}|[A-Z0-9]{4,8})\b/iu', $text, $matches)) {
+                $refCode = strtoupper($matches[1]);
                 if (!str_starts_with($refCode, 'CLN-')) {
                     $refCode = 'CLN-' . $refCode;
                 }

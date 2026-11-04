@@ -39,8 +39,13 @@ class AuthController extends Controller
         $tokenAbility = $user->role === 'doctor' ? 'role:doctor' : 'role:receptionist';
         $token = $user->createToken('clinic_token', [$tokenAbility])->plainTextToken;
 
+        $clinicId = $user->clinic_id ?? $user->tenant?->clinics?->first()?->id ?? 0;
+        $socketSecret = config('services.whatsapp.secret', 'vertex_wa_secure_secret_key_2026');
+        $socketToken = hash_hmac('sha256', "clinic_{$clinicId}", $socketSecret);
+
         return $this->successResponse([
             'token' => $token,
+            'socket_token' => $socketToken,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
@@ -56,8 +61,13 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $user = $request->user()->load(['tenant.clinics', 'tenant.plan', 'clinic']);
+        $clinicId = $user->clinic_id ?? $user->tenant?->clinics?->first()?->id ?? 0;
+        $socketSecret = config('services.whatsapp.secret', 'vertex_wa_secure_secret_key_2026');
+        $socketToken = hash_hmac('sha256', "clinic_{$clinicId}", $socketSecret);
+
         return $this->successResponse([
             'user' => $user,
+            'socket_token' => $socketToken,
             'tenant' => $user->tenant,
             'clinic' => $user->clinic,
         ]);

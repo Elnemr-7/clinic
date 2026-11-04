@@ -34,6 +34,15 @@ export const useSettingsStore = defineStore('settings', {
         this.loading = false;
       }
     },
+    async fetchBranches() {
+      try {
+        const res = await client.get('/settings/branches');
+        this.branches = res.data.data;
+        return this.branches;
+      } catch (e) {
+        return [];
+      }
+    },
     async updateVitals(vitals) {
       await client.post('/settings/vitals', { vitals_config: vitals });
       await this.fetchAll();
@@ -86,12 +95,31 @@ export const useSettingsStore = defineStore('settings', {
       const res = await client.get('/settings/receptionists');
       this.receptionists = res.data.data;
     },
+    async deleteReceptionist(id) {
+      await client.delete(`/settings/receptionists/${id}`);
+      const res = await client.get('/settings/receptionists');
+      this.receptionists = res.data.data;
+    },
     async requestWhatsAppPairing(phone) {
       const res = await client.get('/settings/whatsapp-qr', { params: { phone } });
       return res.data.data;
     },
     async requestTopup(payload) {
       const res = await client.post('/settings/topup', payload);
+      return res.data;
+    },
+    async saveWebsiteSettings(payload) {
+      const res = await client.post('/settings/website', payload);
+      await this.fetchAll();
+      return res.data;
+    },
+    async uploadImage(file, type = 'og_image') {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('type', type);
+      const res = await client.post('/settings/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       return res.data;
     },
   },

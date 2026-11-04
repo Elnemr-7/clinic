@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { io } from 'socket.io-client';
 import axios from 'axios';
 import client from '../api/client';
 import { Tv, Volume2, VolumeX, Stethoscope, Clock, Users, CheckCircle, ArrowRight } from 'lucide-vue-next';
@@ -83,16 +84,35 @@ const fetchQueue = async () => {
   }
 };
 
+let tvSocket = null;
+const initTvSocket = () => {
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+  tvSocket = io(socketUrl, {
+    transports: ['websocket', 'polling'],
+  });
+
+  tvSocket.on('connect', () => {
+    tvSocket.emit('join_tv', { tvCode });
+  });
+
+  tvSocket.on('queue:updated', () => {
+    fetchQueue();
+  });
+};
+
 onMounted(() => {
   updateClock();
   clockTimer = setInterval(updateClock, 1000);
   fetchQueue();
-  pollTimer = setInterval(fetchQueue, 2000);
+  initTvSocket();
+  // Fallback heartbeat poll every 60s
+  pollTimer = setInterval(fetchQueue, 60000);
 });
 
 onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
   if (pollTimer) clearInterval(pollTimer);
+  if (tvSocket) tvSocket.disconnect();
 });
 </script>
 

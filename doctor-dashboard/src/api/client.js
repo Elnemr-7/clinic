@@ -9,7 +9,7 @@ const client = axios.create({
 });
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('clinic_token');
+  const token = sessionStorage.getItem('clinic_token') || localStorage.getItem('clinic_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -21,6 +21,8 @@ client.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('clinic_token');
+      sessionStorage.removeItem('clinic_token');
+      sessionStorage.removeItem('is_impersonating');
       if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/tv/')) {
         window.location.href = '/login';
       }

@@ -42,7 +42,16 @@ const currentClinic = computed(() => {
 });
 
 const shifts = computed(() => {
-  return currentClinic.value?.shifts || [];
+  const allShifts = currentClinic.value?.shifts || [];
+  if (!appointmentDate.value) return allShifts;
+
+  const [year, month, day] = appointmentDate.value.split('-').map(Number);
+  if (!year || !month || !day) return allShifts;
+
+  // Local date construction avoids UTC midnight timezone shift (0 = Sunday ... 6 = Saturday)
+  const selectedDayOfWeek = new Date(year, month - 1, day).getDay();
+
+  return allShifts.filter((s) => Number(s.day_of_week) === selectedDayOfWeek && s.is_active !== false);
 });
 
 watch(clinics, (cList) => {

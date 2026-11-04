@@ -129,88 +129,90 @@ const handleSave = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-right" dir="rtl">
-      <!-- Header -->
-      <div class="px-6 py-4 bg-gradient-to-r from-teal-600 to-emerald-700 text-white flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-white/10 rounded-xl">
-            <Activity class="w-6 h-6" />
+  <Teleport to="body">
+    <div v-if="isOpen" @click.self="$emit('close')" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-right text-content-primary" dir="rtl">
+        <!-- Header -->
+        <div class="px-6 py-4 bg-brand text-content-inverse flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-white/10 rounded-xl">
+              <Activity class="w-6 h-6" />
+            </div>
+            <div>
+              <h3 class="text-xl font-bold">تسجيل العلامات الحيوية</h3>
+              <p class="text-xs text-brand-subtle/80 font-medium">المريض: {{ appointment?.patient?.name }}</p>
+            </div>
           </div>
-          <div>
-            <h3 class="text-xl font-bold">تسجيل العلامات الحيوية</h3>
-            <p class="text-xs text-teal-100 font-medium">المريض: {{ appointment?.patient?.name }}</p>
-          </div>
-        </div>
-        <button @click="$emit('close')" class="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition">
-          <X class="w-6 h-6" />
-        </button>
-      </div>
-
-      <!-- Body -->
-      <div class="p-6 space-y-4">
-        <!-- Blood Pressure (if enabled in schema) -->
-        <div v-if="resolvedVitalsList.some(v => v.key === 'bp')" class="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <label class="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
-            <Heart class="w-3.5 h-3.5 text-rose-500" />
-            <span>ضغط الدم (Blood Pressure mmHg)</span>
-          </label>
-          <div class="flex items-center gap-2">
-            <input
-              v-model="bpSystolic"
-              type="number"
-              placeholder="120"
-              class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 text-center font-mono font-bold"
-            />
-            <span class="text-slate-400 font-bold">/</span>
-            <input
-              v-model="bpDiastolic"
-              type="number"
-              placeholder="80"
-              class="w-full px-3 py-2 text-xs bg-white rounded-lg border border-slate-300 text-center font-mono font-bold"
-            />
-          </div>
+          <button @click="$emit('close')" class="p-2 text-content-inverse/80 hover:text-content-inverse hover:bg-white/10 rounded-xl transition cursor-pointer">
+            <X class="w-6 h-6" />
+          </button>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <!-- Render all non-bp enabled fields dynamically -->
-          <div
-            v-for="item in resolvedVitalsList.filter(v => v.key !== 'bp')"
-            :key="item.key"
-          >
-            <label class="block text-xs font-bold text-slate-700 mb-1">
-              {{ item.label }} <span v-if="item.unit" class="text-slate-400 text-[10px]">({{ item.unit }})</span>
+        <!-- Body -->
+        <div class="p-6 space-y-4 bg-surface-app">
+          <!-- Blood Pressure (if enabled in schema) -->
+          <div v-if="resolvedVitalsList.some(v => v.key === 'bp')" class="p-3 bg-surface-card border border-line-subtle rounded-xl">
+            <label class="block text-xs font-bold text-content-secondary mb-1 flex items-center gap-1.5">
+              <Heart class="w-3.5 h-3.5 text-status-danger" />
+              <span>ضغط الدم (Blood Pressure mmHg)</span>
             </label>
-            <input
-              v-model="dynamicValues[item.key]"
-              type="text"
-              :placeholder="item.unit || ''"
-              class="w-full px-3 py-2 text-xs bg-white rounded-xl border border-slate-300 text-center font-mono"
-            />
+            <div class="flex items-center gap-2">
+              <input
+                v-model="bpSystolic"
+                type="number"
+                placeholder="120"
+                class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle text-center font-mono font-bold focus:ring-2 focus:ring-brand"
+              />
+              <span class="text-content-muted font-bold">/</span>
+              <input
+                v-model="bpDiastolic"
+                type="number"
+                placeholder="80"
+                class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-lg border border-line-subtle text-center font-mono font-bold focus:ring-2 focus:ring-brand"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Render all non-bp enabled fields dynamically -->
+            <div
+              v-for="item in resolvedVitalsList.filter(v => v.key !== 'bp')"
+              :key="item.key"
+            >
+              <label class="block text-xs font-bold text-content-secondary mb-1">
+                {{ item.label }} <span v-if="item.unit" class="text-content-muted text-[10px]">({{ item.unit }})</span>
+              </label>
+              <input
+                v-model="dynamicValues[item.key]"
+                type="text"
+                :placeholder="item.unit || ''"
+                class="w-full px-3 py-2 text-xs bg-surface-input text-content-primary rounded-xl border border-line-subtle text-center font-mono focus:ring-2 focus:ring-brand"
+              />
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Footer -->
-      <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-        <button
-          @click="$emit('close')"
-          type="button"
-          class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-xl transition"
-        >
-          إلغاء
-        </button>
+        <!-- Footer -->
+        <div class="px-6 py-4 bg-surface-card border-t border-line-subtle flex items-center justify-between">
+          <button
+            @click="$emit('close')"
+            type="button"
+            class="px-4 py-2 text-xs font-semibold text-content-secondary hover:bg-surface-elevated rounded-xl transition cursor-pointer"
+          >
+            إلغاء
+          </button>
 
-        <button
-          @click="handleSave"
-          :disabled="saving"
-          type="button"
-          class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-md shadow-teal-500/20 flex items-center gap-2"
-        >
-          <Check class="w-4 h-4" />
-          <span>{{ saving ? 'جارٍ الحفظ...' : 'حفظ القياسات' }}</span>
-        </button>
+          <button
+            @click="handleSave"
+            :disabled="saving"
+            type="button"
+            class="px-5 py-2.5 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl text-xs font-bold transition disabled:opacity-50 shadow-md flex items-center gap-2 cursor-pointer"
+          >
+            <Check class="w-4 h-4" />
+            <span>{{ saving ? 'جارٍ الحفظ...' : 'حفظ القياسات' }}</span>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>

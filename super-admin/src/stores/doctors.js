@@ -17,6 +17,11 @@ export const useDoctorsStore = defineStore('superAdminDoctors', {
         this.loading = false;
       }
     },
+    async createDoctor(data) {
+      const response = await client.post('/tenants', data);
+      await this.fetchDoctors();
+      return response.data;
+    },
     async updateDoctor(id, data) {
       const response = await client.put(`/tenants/${id}`, data);
       await this.fetchDoctors();
@@ -24,6 +29,11 @@ export const useDoctorsStore = defineStore('superAdminDoctors', {
     },
     async updateDoctorWallet(id, data) {
       const response = await client.put(`/tenants/${id}/wallet`, data);
+      await this.fetchDoctors();
+      return response.data;
+    },
+    async deleteDoctor(id) {
+      const response = await client.delete(`/tenants/${id}`);
       await this.fetchDoctors();
       return response.data;
     },

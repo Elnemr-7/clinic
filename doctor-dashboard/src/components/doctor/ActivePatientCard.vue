@@ -1,10 +1,10 @@
 <template>
-  <div class="bg-surface-card border border-line-subtle rounded-2xl p-3 lg:p-3.5 shadow-xs shrink-0 transition-all">
+  <div class="bg-surface-card border border-line-subtle rounded-2xl p-3.5 lg:p-4 shadow-xs w-full transition-all">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
+      <div class="flex items-center gap-3.5 min-w-0">
         <!-- Turn Number Badge -->
-        <div class="w-11 h-11 rounded-xl bg-brand text-content-inverse flex flex-col items-center justify-center shadow-xs font-black shrink-0">
-          <span class="text-[8px] font-bold uppercase tracking-wider opacity-85 leading-none">الدور</span>
+        <div class="w-12 h-12 rounded-xl bg-brand text-content-inverse flex flex-col items-center justify-center shadow-xs font-black shrink-0">
+          <span class="text-[9px] font-bold uppercase tracking-wider opacity-90 leading-none">الدور</span>
           <span class="text-xl leading-none font-mono font-black mt-0.5">#{{ appointment?.queue_number || '-' }}</span>
         </div>
 

@@ -60,7 +60,8 @@ class FollowupDetectorService
                 ->where('clinic_id', $clinicId)
                 ->where('patient_id', $patient->id)
                 ->where('visit_type', 'followup')
-                ->where('appointment_date', '>', $lastCompletedVisit->appointment_date)
+                ->where('appointment_date', '>=', $lastCompletedVisit->appointment_date)
+                ->where('id', '!=', $lastCompletedVisit->id)
                 ->whereIn('status', ['booked', 'arrived_waiting', 'in_consultation', 'completed'])
                 ->exists();
 

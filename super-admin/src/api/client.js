@@ -1,4 +1,5 @@
 import axios from 'axios';
+import router from '../router';
 
 const client = axios.create({
   baseURL: '/api/super-admin',
@@ -21,8 +22,8 @@ client.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('super_admin_token');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (router.currentRoute?.value?.name !== 'login') {
+        router.push({ name: 'login' });
       }
     }
     return Promise.reject(error);
