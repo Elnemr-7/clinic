@@ -65,18 +65,26 @@ async function runEmergencyDayOffJourney() {
   logStep(2, `Registering Active Bookings for Target Date: ${targetDate}`);
   const bookedAppts = [];
   try {
+    const targetDay = new Date(targetDate).getDay();
+    const shiftRes = await axios.get(`${BASE_URL}/api/public/clinic/${clinicId}`);
+    const matchingShift = shiftRes.data.data?.shifts?.find(s => s.day_of_week === targetDay) || shiftRes.data.data?.shifts?.[0];
+    const targetShiftId = matchingShift ? matchingShift.id : 1;
+
     for (let i = 1; i <= 3; i++) {
       const bookRes = await axios.post(
-        `${BASE_URL}/api/clinic/reception/quick-book`,
+        `${BASE_URL}/api/public/book-appointment`,
         {
           clinic_id: clinicId,
-          name: `مريض تجريبي #${i} - ${uniqueSuffix}`,
+          shift_id: targetShiftId,
+          date: targetDate,
+          patient_name: `مريض تجريبي #${i} - ${uniqueSuffix}`,
           phone: `010${uniqueSuffix}${i}00`,
-          appointment_date: targetDate,
-        },
-        { headers: { Authorization: `Bearer ${receptionistToken}` } }
+          gender: 'male',
+          appointment_type: 'examination',
+        }
       );
-      bookedAppts.push(bookRes.data.data.appointment.id);
+      const apptId = bookRes.data.data?.appointment_id || bookRes.data.data?.id;
+      bookedAppts.push(apptId);
     }
     logSuccess(`Registered ${bookedAppts.length} appointments for ${targetDate}: IDs [${bookedAppts.join(', ')}]`);
   } catch (err) {
