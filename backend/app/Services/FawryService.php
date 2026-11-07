@@ -43,14 +43,20 @@ class FawryService
         }
 
         $reference = $payload['merchantRefNumber'] ?? $payload['merchantRefNum'] ?? $payload['fawryRefNumber'] ?? null;
-        if (!$reference) {
+        $fawryRef = $payload['fawryRefNumber'] ?? null;
+        if (!$reference && !$fawryRef) {
             return false;
         }
 
-        return DB::transaction(function () use ($reference) {
-            $topup = WalletTopup::where(function ($query) use ($reference) {
-                $query->where('fawry_reference', $reference)
-                      ->orWhere('id', $reference);
+        return DB::transaction(function () use ($reference, $fawryRef) {
+            $topup = WalletTopup::where(function ($query) use ($reference, $fawryRef) {
+                if ($reference) {
+                    $query->where('fawry_reference', $reference)
+                          ->orWhere('id', $reference);
+                }
+                if ($fawryRef) {
+                    $query->orWhere('fawry_reference', $fawryRef);
+                }
             })->lockForUpdate()->first();
 
             if (!$topup || $topup->status === 'paid') {

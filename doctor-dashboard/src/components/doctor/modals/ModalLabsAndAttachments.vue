@@ -138,7 +138,11 @@ const handleSafeClose = () => {
 };
 
 const handleUploadAttachment = async () => {
-  if (!selectedFile.value || !props.appointment?.patient?.id) return;
+  if (!selectedFile.value) {
+    alerts.warning('يرجى اختيار ملف لرفعه أولاً');
+    return;
+  }
+  if (!props.appointment?.patient?.id) return;
   uploading.value = true;
   try {
     const formData = new FormData();

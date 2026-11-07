@@ -22,7 +22,7 @@ export const useDoctorWorkspaceStore = defineStore('doctorWorkspace', {
         if (clinicId || this.selectedClinicId) {
           params.clinic_id = clinicId || this.selectedClinicId;
         }
-        const response = await client.get('/doctor/current-patient', { params });
+        const response = await client.get('/doctor/current-patient', { params, skipGlobalError: silent });
         const data = response.data.data;
         this.currentPatient = data.appointment;
         this.previousVitals = data.previous_vitals;
@@ -70,11 +70,11 @@ export const useDoctorWorkspaceStore = defineStore('doctorWorkspace', {
       return response.data;
     },
     async searchDrugs(query) {
-      const response = await client.get('/doctor/drugs/autocomplete', { params: { q: query } });
+      const response = await client.get('/doctor/drugs/autocomplete', { params: { q: query }, skipGlobalError: true });
       return response.data.data;
     },
     async searchLabs(query) {
-      const response = await client.get('/doctor/labs/autocomplete', { params: { q: query } });
+      const response = await client.get('/doctor/labs/autocomplete', { params: { q: query }, skipGlobalError: true });
       return response.data.data;
     },
   },

@@ -413,7 +413,10 @@ const openAddShift = (branchId) => {
 };
 
 const handleSaveBranch = async () => {
-  if (!newBranch.value.name.trim()) return;
+  if (!newBranch.value.name.trim()) {
+    alerts.warning('يرجى إدخال اسم الفرع / العيادة');
+    return;
+  }
   saving.value = true;
   try {
     await settingsStore.saveBranch(newBranch.value);

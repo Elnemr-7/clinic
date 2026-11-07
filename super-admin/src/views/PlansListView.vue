@@ -121,8 +121,12 @@ const openEdit = (plan) => {
 const deletePlan = async (id) => {
   const confirmed = await alerts.confirm('تأكيد الحذف', 'هل أنت متأكد من حذف هذه الباقة؟', 'نعم، احذف');
   if (confirmed) {
-    await plansStore.deletePlan(id);
-    alerts.toast('تم حذف الباقة بنجاح');
+    try {
+      await plansStore.deletePlan(id);
+      alerts.toast('تم حذف الباقة بنجاح');
+    } catch (e) {
+      alerts.error('تعذر حذف الباقة', e.response?.data?.message || 'حدث خطأ أثناء محاولة حذف الباقة');
+    }
   }
 };
 </script>

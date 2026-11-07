@@ -70,6 +70,7 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { usePlansStore } from '../../stores/plans';
+import alerts from '../../utils/alerts';
 
 const props = defineProps({
   isOpen: Boolean,
@@ -116,7 +117,15 @@ watch(
 );
 
 const submit = async () => {
-  await plansStore.savePlan(form.value);
-  emit('close');
+  try {
+    await plansStore.savePlan(form.value);
+    alerts.toast('تم حفظ بيانات الباقة بنجاح');
+    emit('close');
+  
+  } catch (err) {
+    alerts.error('فشل حفظ الباقة', err.response?.data?.message || 'حدث خطأ أثناء حفظ الباقة');
+  }
+
+
 };
 </script>

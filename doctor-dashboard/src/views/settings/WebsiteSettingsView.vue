@@ -1414,7 +1414,10 @@ const handleSaveWebsiteSettings = async () => {
 };
 
 const handleGeneratePairingCode = async () => {
-  if (!waPhone.value) return;
+  if (!waPhone.value) {
+    alerts.warning('يرجى إدخال رقم هاتف الواتساب أولاً');
+    return;
+  }
   loadingPairing.value = true;
   try {
     const res = await settingsStore.requestWhatsAppPairing(waPhone.value);

@@ -176,11 +176,29 @@ const openGodMode = (doc) => {
 };
 
 const impersonate = async (doc) => {
-  const result = await doctorsStore.impersonateDoctor(doc.id);
-  const token = result.token;
-  window.open(`http://localhost:5174/workspace?impersonate_token=${token}`, '_blank');
+  try {
+    const result = await doctorsStore.impersonateDoctor(doc.id);
+    const token = result.token;
+    window.open(`http://localhost:5174/workspace?impersonate_token=${token}`, '_blank');
+  } catch (err) {
+    showError('فشل الدخول كطبيب', err.response?.data?.message || 'حدث خطأ أثناء محاولة محاكاة حساب الطبيب');
+  }
 };
 
+/*
+  try {
+    const result = await doctorsStore.impersonateDoctor(doc.id);
+  
+  
+  } catch (err) {
+    showError('فشل الدخول كطبيب', err.response?.data?.message || 'حدث خطأ أثناء محاولة محاكاة حساب الطبيب');
+  }
+
+
+
+};
+
+*/
 const confirmDelete = async (doc) => {
   const confirmed = await showConfirm(
     `حذف حساب ${doc.name}؟`,

@@ -94,16 +94,24 @@ onMounted(() => {
 const approve = async (id) => {
   const confirmed = await alerts.confirm('اعتماد وشحن الرصيد', 'هل ترغب في اعتماد هذا الطلب وشحن الرصيد للطبيب فوراً؟', 'نعم، اعتمد الطلب');
   if (confirmed) {
-    await topupsStore.approveTopup(id);
-    alerts.toast('تم شحن رصيد الطبيب بنجاح');
+    try {
+      await topupsStore.approveTopup(id);
+      alerts.toast('تم شحن رصيد الطبيب بنجاح');
+    } catch (e) {
+      alerts.error('فشل اعتماد الشحنة', e.response?.data?.message || 'حدث خطأ أثناء اعتماد الطلب');
+    }
   }
 };
 
 const reject = async (id) => {
   const confirmed = await alerts.confirm('رفض الطلب', 'هل ترغب في رفض هذا الطلب؟', 'نعم، ارفض');
   if (confirmed) {
-    await topupsStore.rejectTopup(id);
-    alerts.toast('تم رفض الطلب');
+    try {
+      await topupsStore.rejectTopup(id);
+      alerts.toast('تم رفض الطلب');
+    } catch (e) {
+      alerts.error('فشل رفض الشحنة', e.response?.data?.message || 'حدث خطأ أثناء رفض الطلب');
+    }
   }
 };
 </script>

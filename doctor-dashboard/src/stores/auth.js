@@ -33,7 +33,7 @@ export const useAuthStore = defineStore('clinicAuth', {
       this.loading = true;
       this.error = null;
       try {
-        const response = await client.post('/login', { email, password });
+        const response = await client.post('/login', { email, password }, { skipGlobalError: true });
         const data = response.data.data;
         this.token = data.token;
         this.socketToken = data.socket_token || null;

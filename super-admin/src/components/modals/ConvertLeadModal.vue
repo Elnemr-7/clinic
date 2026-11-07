@@ -6,7 +6,7 @@
           <span>✨</span>
           <span>تحويل طلب الاشتراك إلى حساب طبيب نشط</span>
         </h3>
-        <button @click="$emit('close')" class="text-slate-400 hover:text-white text-xl">&times;</button>
+        <button @click="$emit('close')" class="text-slate-400 hover:text-white text-xl cursor-pointer">&times;</button>
       </div>
 
       <form @submit.prevent="submit" class="space-y-4">
@@ -44,8 +44,8 @@
         </div>
 
         <div class="flex justify-end gap-3 pt-4 border-t border-slate-800">
-          <button type="button" @click="$emit('close')" class="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs">إلغاء</button>
-          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-xl text-xs shadow-lg shadow-emerald-900/30">
+          <button type="button" @click="$emit('close')" class="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs cursor-pointer">إلغاء</button>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-xl text-xs shadow-lg shadow-emerald-900/30 cursor-pointer">
             تأكيد وإنشاء الحساب فوراً
           </button>
         </div>
@@ -58,6 +58,7 @@
 import { ref, watch, computed } from 'vue';
 import { useLeadsStore } from '../../stores/leads';
 import { usePlansStore } from '../../stores/plans';
+import alerts from '../../utils/alerts';
 
 const props = defineProps({
   isOpen: Boolean,
@@ -96,7 +97,12 @@ watch(
 );
 
 const submit = async () => {
-  await leadsStore.convertLead(props.lead.id, form.value);
-  emit('close');
+  try {
+    await leadsStore.convertLead(props.lead.id, form.value);
+    alerts.toast('تم تحويل طلب الطبيب وإنشاء الحساب بنجاح');
+    emit('close');
+  } catch (err) {
+    alerts.error('فشل تحويل الطلب', err.response?.data?.message || 'حدث خطأ أثناء تحويل الطلب لحساب طبيب');
+  }
 };
 </script>

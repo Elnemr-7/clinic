@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Route;
 // -----------------------------------------------------------------------------
 Route::prefix('public')->group(function () {
     Route::get('/plans', [\App\Http\Controllers\Public\PublicPlanController::class, 'index']);
-    Route::post('/leads', [\App\Http\Controllers\Public\PublicPlanController::class, 'submitLead'])->middleware('throttle:10,1');
+    Route::post('/leads', [\App\Http\Controllers\Public\PublicPlanController::class, 'submitLead'])->middleware('throttle:120,1');
 
     Route::get('/tenant-by-host', [\App\Http\Controllers\Public\PublicBookingController::class, 'tenantByHost']);
     Route::get('/clinic/{clinicId}', [\App\Http\Controllers\Public\PublicBookingController::class, 'clinicDetails']);
     Route::get('/check-followup', [\App\Http\Controllers\Public\PublicBookingController::class, 'checkEligibility']);
-    Route::post('/book-appointment', [\App\Http\Controllers\Public\PublicBookingController::class, 'bookAppointment'])->middleware('throttle:10,1');
+    Route::post('/book-appointment', [\App\Http\Controllers\Public\PublicBookingController::class, 'bookAppointment'])->middleware('throttle:120,1');
     Route::get('/live-queue/{referenceCode}', [\App\Http\Controllers\Public\PublicBookingController::class, 'liveQueueStatus']);
     Route::get('/tv/{code}', [\App\Http\Controllers\Public\PublicBookingController::class, 'tvQueue']);
     Route::get('/rx/{token}', [\App\Http\Controllers\Public\PublicBookingController::class, 'downloadPrescriptionPdf']);

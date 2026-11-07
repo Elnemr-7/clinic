@@ -713,7 +713,11 @@ onMounted(async () => {
 });
 
 const addCustomVital = () => {
-  if (!newVital.value.label.trim()) return;
+  if (!newVital.value.label.trim()) {
+    alerts.warning('يرجى إدخال اسم المؤشر الحيوي أولاً');
+    return;
+  
+  }
   const key = 'custom_' + Date.now().toString(36);
   vitalsList.value.push({
     key,
@@ -791,25 +795,72 @@ const handleTestPrint = async () => {
 };
 
 const handleSaveDrug = async () => {
-  if (!newDrug.value.name.trim()) return;
+  if (!newDrug.value.name.trim()) {
+    alerts.warning('يرجى إدخال اسم الدواء');
+    return;
+  }
+  try {
+    await settingsStore.saveDrug(newDrug.value);
+    newDrug.value = { name: '', default_dosage: '', default_frequency: 'كل 8 ساعات', default_instructions: 'بعد الأكل' };
+    alerts.toast('تمت إضافة الدواء بنجاح');
+  } catch (e) {
+    alerts.error('فشل إضافة الدواء', e.response?.data?.message || 'حدث خطأ أثناء حفظ الدواء');
+  }
+};
+
+/*
+  if (!newDrug.value.name.trim()) {
+    alerts.warning('يرجى إدخال اسم الدواء');
+  
+  }
+  try {
+    await settingsStore.saveDrug(newDrug.value);
+    newDrug.value = { name: '', default_dosage: '', default_frequency: 'كل 8 ساعات', default_instructions: 'بعد الأكل' };
+    alerts.toast('تمت إضافة الدواء بنجاح');
+  } catch (e) {
+    alerts.error('فشل إضافة الدواء', e.response?.data?.message || 'حدث خطأ أثناء حفظ الدواء');
+  }
+
   await settingsStore.saveDrug(newDrug.value);
   newDrug.value = { name: '', default_dosage: '', default_frequency: 'كل 8 ساعات', default_instructions: 'بعد الأكل' };
   alerts.toast('تمت إضافة الدواء بنجاح');
 };
 
+*/
 const handleSaveLab = async () => {
+  if (!newLab.value.name.trim()) {
+    alerts.warning('يرجى إدخال اسم الفحص أو التحليل');
+    return;
+  }
+  try {
+    await settingsStore.saveLab(newLab.value);
+    newLab.value = { name: '', category: 'lab' };
+    alerts.toast('تمت إضافة الفحص بنجاح');
+  } catch (e) {
+    alerts.error('فشل إضافة الفحص', e.response?.data?.message || 'حدث خطأ أثناء حفظ الفحص');
+  }
+};
+
+/*
   if (!newLab.value.name.trim()) return;
   await settingsStore.saveLab(newLab.value);
   newLab.value = { name: '', category: 'lab' };
   alerts.toast('تمت إضافة الفحص بنجاح');
 };
 
+*/
 const handleSaveTemplate = async () => {
   if (!newTemplate.value.template_name?.trim()) {
-    alerts.toast('يرجى إدخال اسم النموذج');
+    alerts.toast('يرجى إدخال اسم النموذج', 'warning');
     return;
   }
+/*
+  if (!newTemplate.value.template_name?.trim()) {
+    alerts.toast('يرجى إدخال اسم النموذج');
+  
+  }
 
+*/
   const cleanDrugs = (newTemplate.value.drugs_json || []).filter(
     d => (d.drug_name && d.drug_name.trim()) || (d.dosage && d.dosage.trim()) || (d.instructions && d.instructions.trim())
   );

@@ -34,7 +34,8 @@ async function runEmergencyDayOffJourney() {
 
   let doctorToken, receptionistToken, clinicId;
   const uniqueSuffix = Date.now().toString().slice(-4);
-  const targetDate = new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10); // 3 days from now
+  const randomDays = 7 + Math.floor(Math.random() * 20);
+  const targetDate = new Date(Date.now() + 86400000 * randomDays).toISOString().slice(0, 10);
 
   // -------------------------------------------------------------
   // STEP 1: Staff Authentication

@@ -17,7 +17,7 @@ export const useReceptionQueueStore = defineStore('receptionQueue', {
         };
         if (shiftId) params.shift_id = shiftId;
 
-        const response = await client.get('/reception/queue', { params });
+        const response = await client.get('/reception/queue', { params, skipGlobalError: silent });
         this.appointments = response.data.data;
       } finally {
         if (!silent) this.loading = false;

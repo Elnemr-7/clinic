@@ -16,7 +16,7 @@ export const useAuthStore = defineStore('superAdminAuth', {
       this.loading = true;
       this.error = null;
       try {
-        const response = await client.post('/login', { email, password });
+        const response = await client.post('/login', { email, password }, { skipGlobalError: true });
         this.token = response.data.data.token;
         this.admin = response.data.data.admin;
         localStorage.setItem('super_admin_token', this.token);
