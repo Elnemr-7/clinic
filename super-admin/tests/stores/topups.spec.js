@@ -39,10 +39,10 @@ describe('Super Admin Topups Store', () => {
       data: { success: true, data: { data: [] } },
     });
 
-    const res = await store.approveTopup(10);
+    await store.approveTopup(10);
 
-    expect(res.success).toBe(true);
     expect(client.put).toHaveBeenCalledWith('/topups/10/approve');
+    expect(client.get).toHaveBeenCalledWith('/topups');
   });
 
   it('rejectTopup calls reject endpoint and refreshes list', async () => {
@@ -55,9 +55,9 @@ describe('Super Admin Topups Store', () => {
       data: { success: true, data: { data: [] } },
     });
 
-    const res = await store.rejectTopup(10);
+    await store.rejectTopup(10);
 
-    expect(res.success).toBe(true);
     expect(client.put).toHaveBeenCalledWith('/topups/10/reject');
+    expect(client.get).toHaveBeenCalledWith('/topups');
   });
 });

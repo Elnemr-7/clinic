@@ -161,16 +161,16 @@ class ReceptionistTest extends TestCase
         $this->assertEquals('cancelled', $appointment->status);
         $this->assertFalse($appointment->is_paid);
 
-        // Transaction is cleanly reversed/removed so person's cash is NOT counted twice in adding or subtracting
+        // Financial ledger preservation: 1 income + 1 refund expense = net 0
         $transactionsCount = CashTransaction::where('appointment_id', $appointment->id)->count();
-        $this->assertEquals(0, $transactionsCount);
+        $this->assertEquals(2, $transactionsCount);
 
-        // Cashbox income, expense, and net should all be 0 for this patient
+        // Cashbox: net in drawer should be 0 after refund
         $cashboxRes = $this->withHeader('Authorization', "Bearer {$token}")
             ->getJson("/api/clinic/reception/cashbox?clinic_id={$this->clinic->id}");
         $cashboxRes->assertStatus(200);
-        $this->assertEquals(0, $cashboxRes->json('data.total_income'));
-        $this->assertEquals(0, $cashboxRes->json('data.total_expense'));
+        $this->assertEquals(300, $cashboxRes->json('data.total_income'));
+        $this->assertEquals(300, $cashboxRes->json('data.total_expense'));
         $this->assertEquals(0, $cashboxRes->json('data.net_in_drawer'));
     }
 

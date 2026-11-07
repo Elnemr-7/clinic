@@ -181,10 +181,9 @@ class SettingsAndClinicManagementTest extends TestCase
         $appt->refresh();
         $this->assertEquals('cancelled', $appt->status);
 
-        $this->assertDatabaseHas('clinic_days_off', [
-            'clinic_id' => $this->clinic->id,
-            'date' => today()->toDateString(),
-        ]);
+        $dayOff = \App\Models\ClinicDayOff::where('clinic_id', $this->clinic->id)->first();
+        $this->assertNotNull($dayOff);
+        $this->assertEquals(today()->toDateString(), $dayOff->date->toDateString());
     }
 
     /**

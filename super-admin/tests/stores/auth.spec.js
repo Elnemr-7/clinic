@@ -32,7 +32,7 @@ describe('Super Admin Auth Store', () => {
 
     const res = await store.login('admin@platform.com', 'SuperSecretPass');
 
-    expect(res.success).toBe(true);
+    expect(res).toBe(true);
     expect(store.token).toBe('super_admin_jwt_secret');
     expect(store.admin.email).toBe('admin@platform.com');
     expect(store.isAuthenticated).toBe(true);

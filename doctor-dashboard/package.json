@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run --environment happy-dom"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -21,7 +22,10 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.10",
-    "vite": "^8.3.5"
+    "@vue/test-utils": "^2.5.1",
+    "happy-dom": "^21.0.4",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
   },
   "optionalDependencies": {
     "@rolldown/binding-win32-x64-msvc": "^1.2.16"

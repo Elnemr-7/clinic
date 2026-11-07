@@ -35,6 +35,12 @@ export function useClinicSocket(clinicIdRef, socketTokenRef, onQueueUpdated) {
       }
     });
 
+    socket.value.on('queue_updated', (data) => {
+      if (typeof onQueueUpdated === 'function') {
+        onQueueUpdated(data);
+      }
+    });
+
     socket.value.on('disconnect', () => {
       isConnected.value = false;
     });

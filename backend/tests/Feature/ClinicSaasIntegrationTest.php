@@ -14,10 +14,18 @@ use App\Models\User;
 use App\Scopes\TenantScope;
 use App\Services\WhatsAppTokenService;
 use Carbon\Carbon;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ClinicSaasIntegrationTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(\Database\Seeders\DemoDataSeeder::class);
+    }
     public function test_super_admin_login_and_stats()
     {
         $response = $this->postJson('/api/super-admin/login', [

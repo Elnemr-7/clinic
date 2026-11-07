@@ -299,6 +299,15 @@ class TenantController extends Controller
 
         $token = $doctorUser->createToken('impersonation_token', ['role:doctor'])->plainTextToken;
 
+        SuperAdminAuditLog::create([
+            'super_admin_id' => request()->user()?->id,
+            'action' => 'impersonate_doctor',
+            'target_type' => 'tenant',
+            'target_id' => $tenant->id,
+            'details' => ['impersonated_user_id' => $doctorUser->id],
+            'ip_address' => request()->ip(),
+        ]);
+
         return $this->successResponse([
             'token' => $token,
             'user' => $doctorUser,

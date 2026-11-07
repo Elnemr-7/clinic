@@ -122,7 +122,7 @@ class PublicBookingController extends Controller
         $date = Carbon::parse($request->date);
 
         // Check if date is in clinic_days_off
-        $dayOff = $clinic->daysOff()->where('date', $date->toDateString())->first();
+        $dayOff = $clinic->daysOff()->whereDate('date', $date->toDateString())->first();
         if ($dayOff) {
             return $this->errorResponse("عذراً، العيادة مغلقة في هذا التاريخ نظراً لـ: {$dayOff->reason_ar}");
         }
@@ -288,11 +288,27 @@ class PublicBookingController extends Controller
             ->with('patient')
             ->first();
 
-        $waitingList = Appointment::withoutGlobalScope(TenantScope::class)
+        $shiftId = $currentInRoom?->shift_id;
+
+        $waitingQuery = Appointment::withoutGlobalScope(TenantScope::class)
             ->where('clinic_id', $clinic->id)
             ->whereDate('appointment_date', $today)
+            ->when($shiftId, fn($q) => $q->where('shift_id', $shiftId))
             ->whereIn('status', ['waiting', 'arrived_waiting', 'booked'])
-            ->with('patient')
+            ->with('patient');
+
+        if ($currentInRoom) {
+            $waitingQuery->where(function ($q) use ($currentInRoom) {
+                $q->whereIn('status', ['arrived_waiting', 'waiting'])
+                  ->orWhere(function ($sub) use ($currentInRoom) {
+                      $sub->where('status', 'booked')
+                          ->where('queue_number', '>', $currentInRoom->queue_number);
+                  });
+            });
+        }
+
+        $waitingList = $waitingQuery
+            ->orderByRaw("CASE WHEN status = 'arrived_waiting' THEN 1 WHEN status = 'waiting' THEN 2 ELSE 3 END")
             ->orderBy('queue_number', 'asc')
             ->take(8)
             ->get();

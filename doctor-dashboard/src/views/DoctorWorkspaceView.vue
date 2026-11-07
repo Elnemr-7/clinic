@@ -414,6 +414,7 @@ import { useAuthStore } from '../stores/auth';
 import { useDoctorWorkspaceStore } from '../stores/doctorWorkspace';
 import { useReceptionQueueStore } from '../stores/receptionQueue';
 import { useSettingsStore } from '../stores/settings';
+import { useClinicSocket } from '@/composables/useClinicSocket';
 import ActivePatientCard from '../components/doctor/ActivePatientCard.vue';
 import MedicalAlertBanner from '../components/doctor/MedicalAlertBanner.vue';
 import VitalsStrip from '../components/doctor/VitalsStrip.vue';
@@ -515,6 +516,14 @@ const refreshWorkspace = async () => {
   await queueStore.fetchQueue(null, null, null, true);
 };
 
+const { initSocket, disconnect: disconnectSocket } = useClinicSocket(
+  () => authStore.clinic?.id || authStore.user?.clinic_id,
+  () => authStore.socketToken,
+  async () => {
+    await refreshWorkspace();
+  }
+);
+
 const handleNextPatient = async () => {
   try {
     const res = await workspaceStore.completeAndNext();
@@ -566,6 +575,7 @@ const handleKeyDown = (e) => {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
+  initSocket();
   await Promise.all([
     refreshWorkspace(),
     settingsStore.fetchBranches(),
@@ -577,5 +587,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  disconnectSocket();
 });
 </script>

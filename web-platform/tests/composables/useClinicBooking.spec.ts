@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useClinicBooking } from '../../composables/useClinicBooking';
 
-// Mock useRuntimeConfig
-vi.mock('#app', () => ({
-  useRuntimeConfig: () => ({
-    public: {
-      apiBase: 'http://localhost:8000/api',
-    },
-  }),
-}));
+// Provide Nuxt globals
+globalThis.useRuntimeConfig = () => ({
+  public: {
+    apiBase: 'http://localhost:8000/api',
+  },
+});
+globalThis.$fetch = Object.assign(vi.fn(), {
+  create: vi.fn(() => vi.fn()),
+});
 
 describe('useClinicBooking Composable', () => {
   let mockFetch: any;

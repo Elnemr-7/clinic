@@ -20,15 +20,16 @@ use App\Services\FollowupDetectorService;
 use App\Services\SmsGatewayService;
 use App\Services\WhatsAppChannelService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AuditRemediationsTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seed(\Database\Seeders\DemoDataSeeder::class);
     }
 
     public function test_sec_be_01_fawry_signature_verification_and_idempotency()

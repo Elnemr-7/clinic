@@ -41,7 +41,9 @@ function makeRequest(method, endpoint, body = null, token = null) {
 async function runSocketTests() {
     console.log('🧪 Running JS-Server Socket.io Room & Broadcast Test Suite...');
 
-    await new Promise(r => server.listen(3299, r));
+    if (!server.listening) {
+        await new Promise(r => server.listen(3299, r));
+    }
     const socketUrl = 'http://127.0.0.1:3299';
 
     try {

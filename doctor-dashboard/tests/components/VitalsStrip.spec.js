@@ -18,9 +18,9 @@ describe('VitalsStrip Component', () => {
 
     const wrapper = mount(VitalsStrip, {
       props: {
-        vitals: currentVitals,
+        current: currentVitals,
         previousVitals: null,
-        config: vitalsConfig,
+        vitalsConfig: vitalsConfig,
       },
     });
 
@@ -36,9 +36,9 @@ describe('VitalsStrip Component', () => {
 
     const wrapper = mount(VitalsStrip, {
       props: {
-        vitals: currentVitals,
+        current: currentVitals,
         previousVitals: prevVitals,
-        config: vitalsConfig,
+        vitalsConfig: vitalsConfig,
       },
     });
 

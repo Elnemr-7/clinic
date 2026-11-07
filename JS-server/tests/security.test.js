@@ -48,7 +48,9 @@ function makeRequest(method, endpoint, body = null, token = null) {
 async function runSecurityTests() {
     console.log('🧪 Running JS-Server Security & Token Test Suite...');
 
-    await new Promise(r => server.listen(3198, r));
+    if (!server.listening) {
+        await new Promise(r => server.listen(3198, r));
+    }
 
     try {
         // Test 1: Unauthenticated request to protected endpoint must return 401

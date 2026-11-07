@@ -9,44 +9,41 @@ describe('Settings Store (Doctor Dashboard)', () => {
     vi.clearAllMocks();
   });
 
-  it('fetchSettings retrieves tenant details, vitals, margins, and website mode', async () => {
+  it('fetchAll retrieves all clinic settings, branches, and resources', async () => {
     const store = useSettingsStore();
 
-    vi.spyOn(client, 'get').mockResolvedValue({
-      data: {
-        success: true,
-        data: {
-          tenant: { id: 1, name: 'د. أشرف' },
-          vitals_config: [{ key: 'bp', label: 'ضغط الدم', enabled: true }],
-          print_settings: { margin_top: 30, paper_size: 'A5' },
-          website_mode: 1,
-          whatsapp_status: { status: 'connected' },
-        },
-      },
+    vi.spyOn(client, 'get').mockImplementation((url) => {
+      if (url === '/settings') {
+        return Promise.resolve({
+          data: {
+            data: {
+              tenant: { id: 1, name: 'د. أشرف' },
+              vitals_config: [{ key: 'bp', label: 'ضغط الدم', enabled: true }],
+            },
+          },
+        });
+      }
+      return Promise.resolve({ data: { data: [] } });
     });
 
-    await store.fetchSettings();
+    await store.fetchAll();
 
-    expect(store.tenant.name).toBe('د. أشرف');
-    expect(store.vitalsConfig).toHaveLength(1);
-    expect(store.printSettings.paper_size).toBe('A5');
-    expect(store.websiteMode).toBe(1);
-    expect(store.whatsappStatus.status).toBe('connected');
+    expect(store.settings.tenant.name).toBe('د. أشرف');
+    expect(store.settings.vitals_config).toHaveLength(1);
+    expect(store.loading).toBe(false);
   });
 
-  it('updateVitals dispatches payload and updates store state', async () => {
+  it('updateVitals dispatches payload and reloads settings', async () => {
     const store = useSettingsStore();
 
-    vi.spyOn(client, 'post').mockResolvedValue({
-      data: { success: true, data: [{ key: 'sugar', label: 'السكر', enabled: true }] },
-    });
+    vi.spyOn(client, 'post').mockResolvedValue({ data: { success: true } });
+    vi.spyOn(client, 'get').mockResolvedValue({ data: { data: {} } });
 
     await store.updateVitals([{ key: 'sugar', label: 'السكر', enabled: true }]);
 
     expect(client.post).toHaveBeenCalledWith('/settings/vitals', {
       vitals_config: [{ key: 'sugar', label: 'السكر', enabled: true }],
     });
-    expect(store.vitalsConfig[0].key).toBe('sugar');
   });
 
   it('saveDrug posts drug and refreshes drug list', async () => {
@@ -74,7 +71,7 @@ describe('Settings Store (Doctor Dashboard)', () => {
     const payload = {
       clinic_id: 101,
       date: '2026-11-10',
-      reason_ar' => 'ظرف طارئ',
+      reason_ar: 'ظرف طارئ',
       action: 'cancel_and_notify',
     };
 

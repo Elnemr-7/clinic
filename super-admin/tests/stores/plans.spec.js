@@ -35,7 +35,7 @@ describe('Super Admin Plans Store', () => {
     vi.spyOn(client, 'get').mockResolvedValue({ data: { success: true, data: [] } });
 
     await store.savePlan({
-      name_ar' => 'باقة المشافي',
+      name_ar: 'باقة المشافي',
       price_monthly: 1500,
       max_clinics: 10,
     });

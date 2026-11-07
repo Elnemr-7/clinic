@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Clinic extends Model
 {
@@ -52,6 +53,15 @@ class Clinic extends Model
             'followup_price' => 'decimal:2',
             'is_active' => 'boolean',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function ($clinic) {
+            if (empty($clinic->tv_screen_code)) {
+                $clinic->tv_screen_code = strtoupper(Str::random(6));
+            }
+        });
     }
 
     public function shifts(): HasMany

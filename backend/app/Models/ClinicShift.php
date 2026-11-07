@@ -41,6 +41,15 @@ class ClinicShift extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function ($shift) {
+            if (empty($shift->shift_name_ar)) {
+                $shift->shift_name_ar = 'الفترة الصباحية';
+            }
+        });
+    }
+
     public function clinic(): BelongsTo
     {
         return $this->belongsTo(Clinic::class);

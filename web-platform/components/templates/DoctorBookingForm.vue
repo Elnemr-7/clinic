@@ -113,8 +113,8 @@ const handleBook = async () => {
 
     const res = await submitBooking(payload);
     bookingResult.value = res.data;
-  } catch (e) {
-    errorMessage.value = e.response?.data?.message || 'فشل تسجيل الحجز. يرجى مراجعة البيانات المدخلة.';
+  } catch (error) {
+    errorMessage.value = error.data?.message || error.response?._data?.message || error.response?.data?.message || 'فشل تسجيل الحجز. يرجى مراجعة البيانات المدخلة.';
   } finally {
     submitting.value = false;
   }

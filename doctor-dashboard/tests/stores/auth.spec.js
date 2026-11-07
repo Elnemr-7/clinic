@@ -39,7 +39,7 @@ describe('Auth Store (Doctor Dashboard)', () => {
 
     const result = await store.login('doctor@clinic.com', 'password123');
 
-    expect(result.success).toBe(true);
+    expect(result).toBe(true);
     expect(store.token).toBe('fake_jwt_token_123');
     expect(store.socketToken).toBe('socket_hmac_456');
     expect(store.user.name).toBe('د. وائل');

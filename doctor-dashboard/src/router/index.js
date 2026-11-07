@@ -42,7 +42,7 @@ const routes = [
     name: 'rx-direct',
     meta: { public: true },
     beforeEnter: (to) => {
-      window.location.href = `/rx/${to.params.token}`;
+      window.location.href = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/public/rx/${to.params.token}/download`;
     },
   },
   { path: '/:pathMatch(.*)*', redirect: '/login' },

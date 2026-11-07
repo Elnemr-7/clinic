@@ -22,7 +22,8 @@ return new class extends Migration
                 'medical_service',
                 'clinic_supplies',
                 'utilities',
-                'other_expense'
+                'other_expense',
+                'refund'
             ])->default('consultation');
             $table->decimal('amount', 10, 2);
             $table->string('description_ar')->nullable();

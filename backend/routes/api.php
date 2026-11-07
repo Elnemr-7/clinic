@@ -16,6 +16,7 @@ Route::prefix('public')->group(function () {
     Route::get('/live-queue/{referenceCode}', [\App\Http\Controllers\Public\PublicBookingController::class, 'liveQueueStatus']);
     Route::get('/tv/{code}', [\App\Http\Controllers\Public\PublicBookingController::class, 'tvQueue']);
     Route::get('/rx/{token}', [\App\Http\Controllers\Public\PublicBookingController::class, 'downloadPrescriptionPdf']);
+    Route::get('/rx/{token}/download', [\App\Http\Controllers\Public\PublicBookingController::class, 'downloadPrescriptionPdf']);
 });
 
 // TV Screen alias under clinic prefix
@@ -28,7 +29,7 @@ Route::get('/rx/{token}', [\App\Http\Controllers\Public\PublicBookingController:
 // Super Admin Endpoints (Strictly Isolated /api/super-admin/*)
 // -----------------------------------------------------------------------------
 Route::prefix('super-admin')->group(function () {
-    Route::post('/login', [\App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/login', [\App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])->middleware('throttle:60,1');
 
     Route::middleware(['auth:sanctum', 'super_admin.auth'])->group(function () {
         Route::get('/me', [\App\Http\Controllers\SuperAdmin\AuthController::class, 'me']);
@@ -59,7 +60,7 @@ Route::prefix('super-admin')->group(function () {
 // Clinic Endpoints (Doctor & Receptionist Workspace /api/clinic/*)
 // -----------------------------------------------------------------------------
 Route::prefix('clinic')->group(function () {
-    Route::post('/login', [\App\Http\Controllers\Clinic\AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/login', [\App\Http\Controllers\Clinic\AuthController::class, 'login'])->middleware('throttle:60,1');
     Route::get('/heartbeat', function () {
         return response()->json(['status' => 'ok', 'time' => now()]);
     });

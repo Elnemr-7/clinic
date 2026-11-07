@@ -1,3 +1,4 @@
+const { describe, it } = require('node:test');
 const assert = require('assert');
 
 describe('JS-Server Phone Number Formatting for Pairing Code', () => {

@@ -26,6 +26,9 @@ describe('Super Admin Router Navigation Guards', () => {
     authStore.token = 'valid_admin_token';
     authStore.admin = { id: 1, name: 'مدير المنصة' };
 
+    await router.push('/leads');
+    expect(router.currentRoute.value.name).toBe('leads');
+
     await router.push('/login');
     expect(router.currentRoute.value.name).toBe('dashboard');
   });

@@ -27,11 +27,11 @@ describe('ActivePatientCard Component', () => {
     expect(wrapper.text()).toContain('01099887766');
   });
 
-  it('renders followup badge when visit_type is followup', () => {
+  it('renders followup badge when appointment_type is followup', () => {
     const fakeAppointment = {
       id: 102,
       queue_number: 6,
-      visit_type: 'followup',
+      appointment_type: 'followup',
       patient: {
         name: 'منار أحمد',
         phone: '01122334455',

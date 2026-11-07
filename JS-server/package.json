@@ -7,7 +7,7 @@
     "start": "node server.js",
     "start:local": "node -e \"require('dotenv').config({path:'.env.local'}); require('./server.js')\"",
     "start:prod": "node -e \"require('dotenv').config({path:'.env.production'}); require('./server.js')\"",
-    "test": "node test.js"
+    "test": "node tests/security.test.js && node tests/cache.test.js && node tests/socket.test.js && node --test tests/pairing-code.test.js"
   },
   "keywords": [
     "whatsapp",

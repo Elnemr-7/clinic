@@ -143,7 +143,7 @@ class FinancialAndBillingSecurityTest extends TestCase
         ]);
 
         $fawryService = app(FawryService::class);
-        $result = $fawryService->processCallback(['fawryRefNumber' => 'FAW-998877']);
+        $result = $fawryService->processCallback(['fawryRefNumber' => 'FAW-998877', 'orderStatus' => 'PAID']);
 
         $this->assertTrue($result);
         $topup->refresh();
