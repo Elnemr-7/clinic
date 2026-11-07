@@ -56,6 +56,14 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
+  // Support hash-based TV route (e.g. /#/tv/TV1001 or #/tv/TV1001)
+  if (window.location.hash && window.location.hash.startsWith('#/tv/')) {
+    const rawTvPath = window.location.hash.replace(/^#/, '');
+    const tvCode = rawTvPath.split('/')[2] || 'TV1001';
+    window.history.replaceState(null, '', `/tv/${tvCode}`);
+    return next({ name: 'tv', params: { tv_screen_code: tvCode } });
+  }
+
   // Support ?impersonate_token in query, search, or hash
   const urlParams = new URLSearchParams(window.location.search);
   let impersonateToken = to.query.impersonate_token || urlParams.get('impersonate_token');

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { io } from 'socket.io-client';
 import axios from 'axios';
@@ -7,7 +7,7 @@ import client from '../api/client';
 import { Tv, Volume2, VolumeX, Stethoscope, Clock, Users, CheckCircle, ArrowRight } from 'lucide-vue-next';
 
 const route = useRoute();
-const tvCode = route.params.tv_screen_code || '123456';
+const tvCode = computed(() => route.params.tv_screen_code || 'TV1001');
 
 const data = ref({
   clinic: null,
@@ -67,7 +67,7 @@ const updateClock = () => {
 
 const fetchQueue = async () => {
   try {
-    const res = await axios.get(`/api/public/tv/${tvCode}`);
+    const res = await axios.get(`/api/public/tv/${tvCode.value || 'TV1001'}`);
     const nextData = res.data.data;
 
     // Check if current patient changed -> play chime
@@ -92,7 +92,7 @@ const initTvSocket = () => {
   });
 
   tvSocket.on('connect', () => {
-    tvSocket.emit('join_tv', { tvCode });
+    tvSocket.emit('join_tv', { tvCode: tvCode.value || 'TV1001' });
   });
 
   tvSocket.on('queue:updated', () => {

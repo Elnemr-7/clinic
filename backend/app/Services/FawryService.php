@@ -38,6 +38,10 @@ class FawryService
 
     public function processCallback(array $payload): bool
     {
+        if (!isset($payload['orderStatus']) || !in_array($payload['orderStatus'], ['PAID', 'SUCCESS'], true)) {
+            return false;
+        }
+
         $reference = $payload['merchantRefNumber'] ?? $payload['merchantRefNum'] ?? $payload['fawryRefNumber'] ?? null;
         if (!$reference) {
             return false;

@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { useAuthStore } from '../../../stores/auth';
 import { Tv, Monitor, Copy, ExternalLink, X, Check, Cast } from 'lucide-vue-next';
 
 const props = defineProps({
-  isOpen: Boolean,
+  isOpen: { type: Boolean, default: true },
+  clinicId: [String, Number],
   tvCode: String,
   clinicName: String,
 });
@@ -11,10 +13,17 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 const copied = ref(false);
 const launchingTauri = ref(false);
+const authStore = useAuthStore();
+
+const effectiveTvCode = computed(() => {
+  if (props.tvCode) return props.tvCode;
+  const clinic = authStore.user?.tenant?.clinics?.find(c => c.id === Number(props.clinicId)) || authStore.clinic;
+  return clinic?.tv_screen_code || 'TV1001';
+});
 
 const tvUrl = computed(() => {
   const origin = window.location.origin;
-  return `${origin}/#/tv/${props.tvCode || '123456'}`;
+  return `${origin}/tv/${effectiveTvCode.value}`;
 });
 
 const copyLink = async () => {
@@ -36,7 +45,7 @@ const launchOnSecondaryMonitor = async () => {
   try {
     if (window.__TAURI__ && window.__TAURI__.core) {
       await window.__TAURI__.core.invoke('open_tv_on_secondary_monitor', {
-        tvCode: props.tvCode || '123456',
+        tvCode: effectiveTvCode.value,
       });
     } else {
       // In web browser fallback: open popup window
@@ -78,7 +87,7 @@ const launchOnSecondaryMonitor = async () => {
           <div class="p-5 bg-surface-card border border-brand-border rounded-2xl text-center">
             <p class="text-xs font-semibold text-content-secondary mb-2">كود ربط شاشة الانتظار (TV PIN Code):</p>
             <div class="inline-block px-6 py-2 bg-surface-elevated text-brand font-mono text-3xl font-black rounded-xl tracking-widest shadow-inner border border-line-subtle">
-              {{ tvCode || '------' }}
+              {{ effectiveTvCode || '------' }}
             </div>
             <p class="text-[11px] text-content-muted mt-2">
               يمكنك إدخال هذا الكود على متصفح شاشة التلفاز الذكية مباشرة

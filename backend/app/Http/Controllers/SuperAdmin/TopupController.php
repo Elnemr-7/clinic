@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant;
 use App\Models\WalletTopup;
 use App\Services\MessagingWalletService;
 use App\Traits\ApiResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TopupController extends Controller
 {
@@ -28,27 +30,29 @@ class TopupController extends Controller
 
     public function approve(int $id, Request $request): JsonResponse
     {
-        $topup = WalletTopup::findOrFail($id);
+        return DB::transaction(function () use ($id, $request) {
+            $topup = WalletTopup::where('id', $id)->lockForUpdate()->firstOrFail();
 
-        if ($topup->status === 'paid') {
-            return $this->errorResponse('هذا الطلب تم اعتماده مسبقاً');
-        }
+            if ($topup->status !== 'pending') {
+                return $this->errorResponse('هذا الطلب تم اعتماده مسبقاً أو غير معلق');
+            }
 
-        $tenant = $topup->tenant;
-        $adminId = $request->user()->id;
+            $tenant = Tenant::where('id', $topup->tenant_id)->lockForUpdate()->firstOrFail();
+            $adminId = $request->user()->id;
 
-        if ($topup->package_type === 'whatsapp') {
-            $tenant->increment('whatsapp_balance', $topup->quantity_added);
-        } elseif ($topup->package_type === 'sms') {
-            $tenant->increment('sms_balance', $topup->quantity_added);
-        }
+            if ($topup->package_type === 'whatsapp') {
+                $tenant->increment('whatsapp_balance', $topup->quantity_added);
+            } elseif ($topup->package_type === 'sms') {
+                $tenant->increment('sms_balance', $topup->quantity_added);
+            }
 
-        $topup->update([
-            'status' => 'paid',
-            'approved_by_admin_id' => $adminId,
-        ]);
+            $topup->update([
+                'status' => 'paid',
+                'approved_by_admin_id' => $adminId,
+            ]);
 
-        return $this->successResponse($topup, 'تم اعتماد الطلب وشحن الرصيد بنجاح');
+            return $this->successResponse($topup, 'تم اعتماد الطلب وشحن الرصيد بنجاح');
+        });
     }
 
     public function reject(int $id): JsonResponse

@@ -201,8 +201,9 @@ class ReceptionController extends Controller
         });
     }
 
-    public function updateStatus(int $appointmentId, Request $request): JsonResponse
+    public function updateStatus($appointmentId, Request $request): JsonResponse
     {
+        $appointmentId = (int)$appointmentId;
         $request->validate([
             'status' => 'nullable|in:booked,arrived_waiting,in_consultation,postponed_waiting_arrival,completed,cancelled',
             'mark_paid' => 'nullable|boolean',
@@ -244,8 +245,28 @@ class ReceptionController extends Controller
 
             if ($newStatus === 'cancelled') {
                 if ($request->boolean('refund_money')) {
-                    // Reversal: remove cash transactions for this appointment so money is not counted in adding or subtracting
-                    CashTransaction::where('appointment_id', $appointment->id)->delete();
+                    $paidAmount = (float) CashTransaction::where('appointment_id', $appointment->id)
+                        ->where('type', 'income')
+                        ->sum('amount');
+
+                    if ($paidAmount <= 0) {
+                        $paidAmount = ($appointment->is_paid ? (float) $appointment->consultation_fee : 0)
+                            + ($appointment->extra_services_paid ? (float) $appointment->extra_services_total : 0);
+                    }
+
+                    if ($paidAmount > 0) {
+                        CashTransaction::create([
+                            'tenant_id' => $appointment->tenant_id,
+                            'clinic_id' => $appointment->clinic_id,
+                            'appointment_id' => $appointment->id,
+                            'created_by_user_id' => $request->user()->id,
+                            'type' => 'expense',
+                            'category' => 'refund',
+                            'amount' => $paidAmount,
+                            'description_ar' => "استرداد مبلغ حجز ملغي للمريض: {$appointment->patient?->name} (رقم #{$appointment->queue_number})",
+                            'transaction_date' => today(),
+                        ]);
+                    }
 
                     $appointment->is_paid = false;
                     $appointment->extra_services_paid = false;
@@ -275,8 +296,9 @@ class ReceptionController extends Controller
         });
     }
 
-    public function collectExtraServices(int $appointmentId, Request $request): JsonResponse
+    public function collectExtraServices($appointmentId, Request $request): JsonResponse
     {
+        $appointmentId = (int)$appointmentId;
         // Correction 4: Dedicated Extra Procedure Fees collection endpoint
         $appointment = Appointment::findOrFail($appointmentId);
 
@@ -315,10 +337,11 @@ class ReceptionController extends Controller
         return $this->successResponse($appointment, 'تم تحصيل قيمة الخدمات الإضافية وإيداعها بالخزينة بنجاح');
     }
 
-    public function saveVitals(int $appointmentId, Request $request): JsonResponse
+    public function saveVitals($appointmentId, Request $request): JsonResponse
     {
+        $appointmentId = (int)$appointmentId;
         $appointment = Appointment::findOrFail($appointmentId);
-        $vitals = $request->input('vitals_data', []);
+        $vitals = $request->input('vitals_data', $request->input('vitals', []));
 
         $appointment->update([
             'vitals_data' => $vitals,

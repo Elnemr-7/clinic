@@ -28,7 +28,7 @@ Route::get('/rx/{token}', [\App\Http\Controllers\Public\PublicBookingController:
 // Super Admin Endpoints (Strictly Isolated /api/super-admin/*)
 // -----------------------------------------------------------------------------
 Route::prefix('super-admin')->group(function () {
-    Route::post('/login', [\App\Http\Controllers\SuperAdmin\AuthController::class, 'login']);
+    Route::post('/login', [\App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])->middleware('throttle:5,1');
 
     Route::middleware(['auth:sanctum', 'super_admin.auth'])->group(function () {
         Route::get('/me', [\App\Http\Controllers\SuperAdmin\AuthController::class, 'me']);
@@ -59,7 +59,7 @@ Route::prefix('super-admin')->group(function () {
 // Clinic Endpoints (Doctor & Receptionist Workspace /api/clinic/*)
 // -----------------------------------------------------------------------------
 Route::prefix('clinic')->group(function () {
-    Route::post('/login', [\App\Http\Controllers\Clinic\AuthController::class, 'login']);
+    Route::post('/login', [\App\Http\Controllers\Clinic\AuthController::class, 'login'])->middleware('throttle:5,1');
     Route::get('/heartbeat', function () {
         return response()->json(['status' => 'ok', 'time' => now()]);
     });
@@ -82,6 +82,7 @@ Route::prefix('clinic')->group(function () {
             Route::post('/next-patient', [\App\Http\Controllers\Clinic\DoctorWorkspaceController::class, 'completeAndCallNextPatient']);
             Route::get('/patient-history/{patientId}', [\App\Http\Controllers\Clinic\DoctorWorkspaceController::class, 'previousVisits']);
             Route::post('/attachments/{patientId}', [\App\Http\Controllers\Clinic\DoctorWorkspaceController::class, 'saveAttachments']);
+            Route::get('/attachments/{attachmentId}', [\App\Http\Controllers\Clinic\DoctorWorkspaceController::class, 'downloadAttachment']);
             Route::get('/drugs/autocomplete', [\App\Http\Controllers\Clinic\DoctorWorkspaceController::class, 'autoCompleteDrugs']);
             Route::get('/labs/autocomplete', [\App\Http\Controllers\Clinic\DoctorWorkspaceController::class, 'autoCompleteLabs']);
         });
@@ -99,7 +100,7 @@ Route::prefix('clinic')->group(function () {
         });
 
         // Settings & Configurations
-        Route::prefix('settings')->group(function () {
+        Route::prefix('settings')->middleware('clinic.auth:doctor')->group(function () {
             Route::get('/', [\App\Http\Controllers\Clinic\SettingsController::class, 'getSettings']);
             Route::post('/vitals', [\App\Http\Controllers\Clinic\SettingsController::class, 'updateVitalsConfig']);
             Route::post('/print-margins', [\App\Http\Controllers\Clinic\SettingsController::class, 'updatePrintMargins']);

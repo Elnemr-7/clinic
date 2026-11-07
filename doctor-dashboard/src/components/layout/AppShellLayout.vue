@@ -166,6 +166,8 @@
     <ModalWaitingTvLauncher
       v-if="showWaitingTvLauncher"
       :clinic-id="selectedClinicId"
+      :is-open="showWaitingTvLauncher"
+      :tv-code="activeTvScreenCode"
       :clinic-name="activeClinicName"
       @close="showWaitingTvLauncher = false"
     />
@@ -226,6 +228,11 @@ const selectedClinicId = computed({
     workspaceStore.selectedClinicId = Number(val);
     queueStore.selectedClinicId = Number(val);
   },
+});
+
+const activeTvScreenCode = computed(() => {
+  const match = branches.value.find(b => b.id === selectedClinicId.value);
+  return match?.tv_screen_code || authStore.clinic?.tv_screen_code || 'TV1001';
 });
 
 const isWorkspace = computed(() => {

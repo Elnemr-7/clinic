@@ -22,6 +22,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class DoctorWorkspaceController extends Controller
@@ -86,8 +87,9 @@ class DoctorWorkspaceController extends Controller
         ]);
     }
 
-    public function savePrescription(int $appointmentId, Request $request): JsonResponse
+    public function savePrescription($appointmentId, Request $request): JsonResponse
     {
+        $appointmentId = (int)$appointmentId;
         $tenantId = $request->user()->tenant_id;
         $appointment = Appointment::where('tenant_id', $tenantId)->findOrFail($appointmentId);
 
@@ -164,8 +166,9 @@ class DoctorWorkspaceController extends Controller
         ], 'تم حفظ الروشتة الطبية بنجاح');
     }
 
-    public function saveLabsAndNotes(int $appointmentId, Request $request): JsonResponse
+    public function saveLabsAndNotes($appointmentId, Request $request): JsonResponse
     {
+        $appointmentId = (int)$appointmentId;
         $tenantId = $request->user()->tenant_id;
         $appointment = Appointment::where('tenant_id', $tenantId)->findOrFail($appointmentId);
 
@@ -199,31 +202,70 @@ class DoctorWorkspaceController extends Controller
         return $this->successResponse($consultation, 'تم حفظ الفحوصات والتحاليل بنجاح');
     }
 
-    public function saveExtraServicesAndFollowup(int $appointmentId, Request $request): JsonResponse
+    public function saveExtraServicesAndFollowup($appointmentId, Request $request): JsonResponse
     {
+        $appointmentId = (int)$appointmentId;
         $tenantId = $request->user()->tenant_id;
         $appointment = Appointment::where('tenant_id', $tenantId)->findOrFail($appointmentId);
 
         $services = $request->input('selected_services', $request->input('extra_services_billed', []));
-        $serviceIds = $request->input('service_ids', []);
+        $serviceIds = (array) $request->input('service_ids', []);
+
+        // Collect service IDs from both service_ids input and selected_services items
+        if (is_array($services)) {
+            foreach ($services as $srv) {
+                if (!empty($srv['id'])) {
+                    $serviceIds[] = $srv['id'];
+                }
+            }
+        }
+        $serviceIds = array_values(array_unique(array_filter($serviceIds)));
+
+        $clinicServices = !empty($serviceIds)
+            ? \App\Models\ClinicService::whereIn('id', $serviceIds)->get()->keyBy('id')
+            : collect();
+
+        $sanitizedServices = [];
+        $extraTotal = 0.0;
 
         if (empty($services) && !empty($serviceIds)) {
-            $clinicServices = \App\Models\ClinicService::whereIn('id', $serviceIds)->get();
-            $services = $clinicServices->map(function ($s) {
-                return [
-                    'id' => $s->id,
-                    'service_name' => $s->name_ar ?? $s->name,
-                    'price' => (float)$s->price,
-                ];
-            })->toArray();
+            foreach ($serviceIds as $id) {
+                if (isset($clinicServices[$id])) {
+                    $s = $clinicServices[$id];
+                    $price = max(0.0, (float)$s->price);
+                    $sanitizedServices[] = [
+                        'id' => $s->id,
+                        'service_name' => $s->name_ar ?? $s->name,
+                        'price' => $price,
+                    ];
+                    $extraTotal += $price;
+                }
+            }
+        } else {
+            foreach ($services as $srv) {
+                $id = $srv['id'] ?? null;
+                if ($id && isset($clinicServices[$id])) {
+                    $s = $clinicServices[$id];
+                    $price = max(0.0, (float)$s->price);
+                    $sanitizedServices[] = [
+                        'id' => $s->id,
+                        'service_name' => $s->name_ar ?? $s->name ?? ($srv['service_name'] ?? ''),
+                        'price' => $price,
+                    ];
+                } else {
+                    $price = max(0.0, (float)($srv['price'] ?? 0));
+                    $sanitizedServices[] = [
+                        'id' => $id,
+                        'service_name' => $srv['service_name'] ?? '',
+                        'price' => $price,
+                    ];
+                }
+                $extraTotal += $price;
+            }
         }
 
+        $services = $sanitizedServices;
         $followupDate = $request->input('followup_date');
-
-        $extraTotal = 0;
-        foreach ($services as $srv) {
-            $extraTotal += (float)($srv['price'] ?? 0);
-        }
 
         $appointment->update([
             'extra_services_total' => $extraTotal,
@@ -349,8 +391,9 @@ class DoctorWorkspaceController extends Controller
         });
     }
 
-    public function previousVisits(int $patientId, Request $request): JsonResponse
+    public function previousVisits($patientId, Request $request): JsonResponse
     {
+        $patientId = (int)$patientId;
         $tenantId = $request->user()->tenant_id;
         $patient = Patient::where('tenant_id', $tenantId)->findOrFail($patientId);
 
@@ -367,29 +410,54 @@ class DoctorWorkspaceController extends Controller
         ]);
     }
 
-    public function saveAttachments(int $patientId, Request $request): JsonResponse
+    public function saveAttachments($patientId, Request $request): JsonResponse
     {
+        $patientId = (int)$patientId;
         $tenantId = $request->user()->tenant_id;
         $patient = Patient::where('tenant_id', $tenantId)->findOrFail($patientId);
 
         $request->validate([
             'title' => 'required|string',
-            'file' => 'required|file|max:10240',
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
         $file = $request->file('file');
-        $path = $file->store("attachments/{$tenantId}/{$patientId}", 'public');
+        $path = $file->store("attachments/{$tenantId}/{$patientId}", 'local');
 
         $attachment = PatientAttachment::create([
             'tenant_id' => $tenantId,
             'patient_id' => $patient->id,
             'consultation_id' => $request->input('consultation_id'),
             'title' => $request->title,
-            'file_path' => '/storage/' . $path,
+            'file_path' => $path,
             'file_type' => $file->getClientOriginalExtension(),
         ]);
 
         return $this->successResponse($attachment, 'تم رفع المرفق بنجاح');
+    }
+
+    public function downloadAttachment($attachmentId, Request $request)
+    {
+        $attachmentId = (int)$attachmentId;
+        $tenantId = $request->user()->tenant_id;
+
+        $attachment = PatientAttachment::where('tenant_id', $tenantId)->findOrFail($attachmentId);
+
+        // Verify patient ownership within tenant
+        Patient::where('tenant_id', $tenantId)->findOrFail($attachment->patient_id);
+
+        $disk = Storage::disk('local');
+        $filePath = ltrim(str_replace('/storage/', '', $attachment->file_path), '/');
+
+        if (!$disk->exists($filePath)) {
+            return $this->errorResponse('الملف غير موجود', null, 404);
+        }
+
+        if ($request->boolean('download')) {
+            return $disk->download($filePath, $attachment->title . '.' . ($attachment->file_type ?: pathinfo($filePath, PATHINFO_EXTENSION)));
+        }
+
+        return $disk->response($filePath);
     }
 
     public function autoCompleteDrugs(Request $request): JsonResponse
