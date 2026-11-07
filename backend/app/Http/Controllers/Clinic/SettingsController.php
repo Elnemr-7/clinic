@@ -67,6 +67,8 @@ class SettingsController extends Controller
 
         return $this->successResponse([
             'tenant' => $tenant,
+            'vitals_config' => $tenant->vitals_config,
+            'print_settings' => $tenant->print_settings,
             'whatsapp_status' => $waStatus,
             'website_mode' => (int)$currentMode,
             'plan_capabilities' => [
@@ -109,31 +111,79 @@ class SettingsController extends Controller
         }
         $filePath = $this->pdfService->generateTestMarginsPdf($tenant, $margins);
 
-        return response()->file($filePath, [
-            'Content-Type' => 'application/pdf',
+        $content = file_get_contents($filePath);
+        $isPdf = str_starts_with($content, '%PDF');
+
+        if ($isPdf) {
+            return response($content, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="test_margins.pdf"',
+                'Content-Length' => strlen($content),
+            ]);
+        }
+
+        return response($content, 200, [
+            'Content-Type' => 'text/html; charset=utf-8',
         ]);
     }
 
     public function getDrugs(Request $request): JsonResponse
     {
-        $drugs = DoctorDrug::where('tenant_id', $request->user()->tenant_id)->get();
+        $drugs = DoctorDrug::where('tenant_id', $request->user()->tenant_id)
+            ->latest()
+            ->get()
+            ->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'tenant_id' => $d->tenant_id,
+                    'name' => $d->drug_name,
+                    'drug_name' => $d->drug_name,
+                    'form_type' => $d->form_type,
+                    'default_dosage' => $d->default_dosage,
+                    'default_frequency' => $d->default_duration,
+                    'default_duration' => $d->default_duration,
+                    'default_instructions' => $d->notes,
+                    'notes' => $d->notes,
+                ];
+            });
         return $this->successResponse($drugs);
     }
 
     public function saveDrug(Request $request): JsonResponse
     {
-        if (!$request->has('drug_name') && $request->has('name')) {
-            $request->merge(['drug_name' => $request->name]);
+        $drugName = $request->input('drug_name') ?: $request->input('name');
+        if (!$drugName) {
+            return $this->errorResponse('اسم الدواء مطلوب');
         }
-        $request->validate(['drug_name' => 'required']);
         $tenantId = $request->user()->tenant_id;
 
         $drug = DoctorDrug::updateOrCreate(
-            ['tenant_id' => $tenantId, 'drug_name' => $request->drug_name],
-            $request->only(['form_type', 'default_dosage', 'default_duration', 'notes'])
+            ['tenant_id' => $tenantId, 'drug_name' => trim($drugName)],
+            [
+                'form_type' => $request->input('form_type'),
+                'default_dosage' => $request->input('default_dosage'),
+                'default_duration' => $request->input('default_frequency') ?: $request->input('default_duration'),
+                'notes' => $request->input('default_instructions') ?: $request->input('notes'),
+            ]
         );
 
-        return $this->successResponse($drug, 'تم حفظ الدواء بنجاح');
+        return $this->successResponse([
+            'id' => $drug->id,
+            'name' => $drug->drug_name,
+            'drug_name' => $drug->drug_name,
+            'default_dosage' => $drug->default_dosage,
+            'default_frequency' => $drug->default_duration,
+            'default_instructions' => $drug->notes,
+        ], 'تم حفظ الدواء بنجاح');
+    }
+
+    public function deleteDrug(int $id, Request $request): JsonResponse
+    {
+        DoctorDrug::where('tenant_id', $request->user()->tenant_id)
+            ->where('id', $id)
+            ->delete();
+
+        return $this->successResponse(null, 'تم حذف الدواء من الكتالوج بنجاح');
     }
 
     public function getTemplates(Request $request): JsonResponse
@@ -158,8 +208,22 @@ class SettingsController extends Controller
             return $this->errorResponse('اسم نموذج الروشتة مطلوب', 422);
         }
 
+        $tenantId = $request->user()->tenant_id;
+
+        if ($request->filled('id')) {
+            $template = PrescriptionTemplate::where('tenant_id', $tenantId)->find($request->input('id'));
+            if ($template) {
+                $template->update([
+                    'template_name' => $name,
+                    'diagnosis_default' => $diagnosis,
+                    'drugs_json' => $drugs,
+                ]);
+                return $this->successResponse($template, 'تم تحديث نموذج الروشتة بنجاح');
+            }
+        }
+
         $template = PrescriptionTemplate::updateOrCreate(
-            ['tenant_id' => $request->user()->tenant_id, 'template_name' => $name],
+            ['tenant_id' => $tenantId, 'template_name' => $name],
             [
                 'diagnosis_default' => $diagnosis,
                 'drugs_json' => $drugs,
@@ -410,14 +474,18 @@ class SettingsController extends Controller
 
     public function saveReceptionist(Request $request): JsonResponse
     {
+        $id = $request->input('id');
+        $tenantId = $request->user()->tenant_id;
+
         $request->validate([
-            'name' => 'required',
-            'email' => 'required|email',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,' . ($id ?: 'NULL') . ',id',
             'clinic_id' => 'required|integer',
+            'password' => $id ? 'nullable|min:6' : 'required|min:6',
         ]);
 
         $data = [
-            'tenant_id' => $request->user()->tenant_id,
+            'tenant_id' => $tenantId,
             'name' => $request->name,
             'email' => $request->email,
             'phone' => $request->phone,
@@ -430,8 +498,16 @@ class SettingsController extends Controller
             $data['password'] = $request->password;
         }
 
-        $user = User::updateOrCreate(['id' => $request->input('id')], $data);
-        return $this->successResponse($user, 'تم حفظ حساب السكرتارية بنجاح');
+        if ($id) {
+            $user = User::where('tenant_id', $tenantId)
+                ->where('role', 'receptionist')
+                ->findOrFail($id);
+            $user->update($data);
+        } else {
+            $user = User::create($data);
+        }
+
+        return $this->successResponse($user->load('clinic'), 'تم حفظ حساب السكرتارية بنجاح');
     }
 
     public function deleteReceptionist(int $id, Request $request): JsonResponse

@@ -344,9 +344,24 @@ class PublicBookingController extends Controller
             $pdfPath = $service->generatePrescriptionPdf($consultation);
         }
 
-        return response()->file($pdfPath, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="prescription.pdf"',
+        $content = file_get_contents($pdfPath);
+        $isPdf = str_starts_with($content, '%PDF');
+
+        if ($isPdf) {
+            return response($content, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="prescription.pdf"',
+                'Content-Length' => strlen($content),
+            ]);
+        }
+
+        // Printable HTML prescription fallback with auto-print
+        if (!str_contains($content, 'window.print()')) {
+            $content = str_replace('</body>', '<script>window.addEventListener("load", () => { setTimeout(() => window.print(), 300); });</script></body>', $content);
+        }
+
+        return response($content, 200, [
+            'Content-Type' => 'text/html; charset=utf-8',
         ]);
     }
 }

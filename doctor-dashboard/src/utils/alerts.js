@@ -62,6 +62,39 @@ export const showConfirm = async (title, message = '', confirmText = 'نعم، �
   return result.isConfirmed;
 };
 
+export const promptRefundOnCancel = async (patientName, amount) => {
+  return Swal.fire({
+    icon: 'warning',
+    title: 'استرداد المبلغ وإلغاء الحجز',
+    html: `
+      <div class="text-right space-y-2 font-sans py-1" dir="rtl">
+        <p class="text-xs text-slate-700 leading-relaxed">
+          قام المريض <strong class="text-slate-900">${patientName || 'المريض'}</strong> بسداد مبلغ
+          <strong class="text-emerald-600 font-mono text-sm">${amount} ج.م</strong>.
+        </p>
+        <p class="text-xs text-slate-500 font-medium">
+          هل تريد استرداد هذا المبلغ نقداً للمريض وخصمه من الخزينة الآن؟
+        </p>
+      </div>
+    `,
+    showCancelButton: true,
+    showDenyButton: true,
+    confirmButtonText: 'نعم، استرداد وخصم من الخزينة',
+    denyButtonText: 'إلغاء الحجز بدون استرداد',
+    cancelButtonText: 'تراجع (إبقاء الحجز)',
+    customClass: {
+      popup: 'rounded-3xl shadow-2xl border border-slate-200 text-right font-sans p-6',
+      title: 'text-base font-extrabold text-slate-900',
+      htmlContainer: 'text-xs text-slate-600 !pt-2 !pb-4',
+      confirmButton: 'px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md transition mx-1 cursor-pointer',
+      denyButton: 'px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-md transition mx-1 cursor-pointer',
+      cancelButton: 'px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition mx-1 cursor-pointer',
+    },
+    buttonsStyling: false,
+    reverseButtons: true,
+  });
+};
+
 export const showToast = (message, icon = 'success') => {
   const Toast = Swal.mixin({
     toast: true,
@@ -81,5 +114,6 @@ export default {
   error: showError,
   warning: showWarning,
   confirm: showConfirm,
+  promptRefund: promptRefundOnCancel,
   toast: showToast,
 };

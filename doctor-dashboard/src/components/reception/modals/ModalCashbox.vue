@@ -182,7 +182,7 @@ const handleAddExpense = async () => {
                   <ArrowUpRight v-else class="w-4 h-4" />
                 </span>
                 <div>
-                  <p class="font-bold text-content-primary">{{ tx.description || (tx.type === 'income' ? 'تحصيل كشف' : 'مصروف نثري') }}</p>
+                  <p class="font-bold text-content-primary">{{ tx.description_ar || tx.description || (tx.type === 'income' ? 'تحصيل كشف' : 'مصروف نثري') }}</p>
                   <p class="text-[10px] text-content-muted">{{ tx.created_at ? new Date(tx.created_at).toLocaleTimeString('ar-EG') : '' }}</p>
                 </div>
               </div>

@@ -34,11 +34,13 @@ export const useReceptionQueueStore = defineStore('receptionQueue', {
       });
       return response.data.data;
     },
-    async updateStatus(appointmentId, status, markPaid = false) {
-      const response = await client.post(`/reception/status/${appointmentId}`, {
-        status,
-        mark_paid: markPaid,
-      });
+    async updateStatus(appointmentId, status, markPaid = false, refundMoney = false) {
+      const payload = {};
+      if (status !== null && status !== undefined) payload.status = status;
+      if (markPaid) payload.mark_paid = true;
+      if (refundMoney !== undefined && refundMoney !== null) payload.refund_money = Boolean(refundMoney);
+
+      const response = await client.post(`/reception/status/${appointmentId}`, payload);
       await this.fetchQueue();
       return response.data;
     },

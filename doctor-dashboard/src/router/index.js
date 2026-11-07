@@ -37,6 +37,14 @@ const routes = [
       },
     ],
   },
+  {
+    path: '/rx/:token',
+    name: 'rx-direct',
+    meta: { public: true },
+    beforeEnter: (to) => {
+      window.location.href = `/rx/${to.params.token}`;
+    },
+  },
   { path: '/:pathMatch(.*)*', redirect: '/login' },
 ];
 
@@ -78,7 +86,14 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // Public routes (login, /tv/:code)
+  // If user is already authenticated and visits login route, redirect into their workspace
+  if (to.name === 'login' && authStore.isAuthenticated) {
+    if (authStore.user) {
+      return next(authStore.user.role === 'doctor' ? '/workspace' : '/reception');
+    }
+  }
+
+  // Public routes (login, /tv/:code, /rx/:token)
   if (to.meta.public) {
     return next();
   }

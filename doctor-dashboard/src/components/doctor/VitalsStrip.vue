@@ -18,7 +18,7 @@
         :key="item.key"
         class="bg-surface-elevated border border-line-subtle py-2 px-2.5 rounded-xl flex flex-col justify-between min-w-0"
       >
-        <span class="text-[10px] font-semibold text-content-secondary truncate">{{ item.label }}</span>
+        <span class="text-[10px] font-semibold text-content-secondary truncate" :title="item.label">{{ item.label }}</span>
         <div class="mt-1 flex items-baseline gap-1 truncate">
           <span class="text-xs lg:text-sm font-black text-content-primary font-mono tabular-nums truncate">
             {{ getVitalDisplay(currentData, item.key, item.unit) }}
@@ -67,12 +67,12 @@ const prevData = computed(() => {
 });
 
 const defaultVitals = [
-  { key: 'bp', label: 'ضغط الدم', unit: 'mmHg', enabled: true },
-  { key: 'pulse', label: 'النبض', unit: 'bpm', enabled: true },
-  { key: 'temp', label: 'الحرارة', unit: '°C', enabled: true },
-  { key: 'weight', label: 'الوزن', unit: 'kg', enabled: true },
-  { key: 'sugar', label: 'السكر', unit: 'mg/dL', enabled: true },
-  { key: 'oxygen', label: 'الأكسجين', unit: '%', enabled: true },
+  { key: 'bp', label: 'ضغط الدم (BP)', unit: 'mmHg', enabled: true },
+  { key: 'pulse', label: 'معدل النبض (Pulse)', unit: 'bpm', enabled: true },
+  { key: 'temp', label: 'درجة الحرارة (Temp)', unit: '°C', enabled: true },
+  { key: 'weight', label: 'الوزن (Weight)', unit: 'kg', enabled: true },
+  { key: 'sugar', label: 'السكر العشوائي (Glucose)', unit: 'mg/dL', enabled: true },
+  { key: 'oxygen', label: 'نسبة الأكسجين (SpO2)', unit: '%', enabled: true },
 ];
 
 const enabledVitals = computed(() => {
@@ -83,16 +83,47 @@ const enabledVitals = computed(() => {
   return defaultVitals;
 });
 
+// Alias mapping for full backwards and cross-naming compatibility
+const aliasMap = {
+  bp: ['blood_pressure', 'bloodPressure'],
+  pulse: ['heart_rate', 'pulseRate'],
+  temp: ['temperature'],
+  weight: ['wt'],
+  height: ['ht'],
+  sugar: ['blood_sugar', 'glucose', 'bloodSugar'],
+  oxygen: ['oxygen_saturation', 'spO2', 'spo2'],
+};
+
+const extractVitalValue = (dataObj, key) => {
+  if (!dataObj || typeof dataObj !== 'object') return undefined;
+
+  // 1. Direct match (works for standard keys and any doctor custom_xxx key)
+  if (dataObj[key] !== undefined && dataObj[key] !== null && dataObj[key] !== '') {
+    return dataObj[key];
+  }
+
+  // 2. Fallback to known aliases for standard keys
+  const aliases = aliasMap[key] || [];
+  for (const alias of aliases) {
+    if (dataObj[alias] !== undefined && dataObj[alias] !== null && dataObj[alias] !== '') {
+      return dataObj[alias];
+    }
+  }
+
+  return undefined;
+};
+
 const getVitalDisplay = (dataObj, key, unit) => {
-  if (!dataObj || dataObj[key] === undefined || dataObj[key] === null || dataObj[key] === '') {
+  const val = extractVitalValue(dataObj, key);
+  if (val === undefined || val === null || val === '') {
     return '-';
   }
-  return `${dataObj[key]} ${unit || ''}`.trim();
+  return `${val} ${unit || ''}`.trim();
 };
 
 const hasPrevious = (key) => {
   if (!prevData.value) return false;
-  const val = prevData.value[key];
+  const val = extractVitalValue(prevData.value, key);
   return val !== undefined && val !== null && val !== '';
 };
 </script>

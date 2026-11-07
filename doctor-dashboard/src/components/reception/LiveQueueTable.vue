@@ -27,14 +27,91 @@ const statusLabels = {
   cancelled: { text: 'ملغي', class: 'bg-status-danger-bg text-status-danger border-status-danger-border' },
 };
 
-const handleStatusChange = async (appointmentId, newStatus) => {
-  processingId.value = appointmentId;
+const handleStatusChange = async (appt, event) => {
+  const newStatus = event.target.value;
+  if (newStatus === appt.status) return;
+
+  if (newStatus === 'cancelled') {
+    const feePaid = appt.is_paid ? Number(appt.consultation_fee ?? appt.fee ?? 0) : 0;
+    const extraPaid = appt.extra_services_paid ? Number(appt.extra_services_total || 0) : 0;
+    const totalPaid = feePaid + extraPaid;
+
+    let refundMoney = false;
+
+    if (appt.is_paid || appt.extra_services_paid || totalPaid > 0) {
+      const result = await alerts.promptRefund(appt.patient?.name, totalPaid);
+      if (result.isConfirmed) {
+        refundMoney = true;
+      } else if (result.isDenied) {
+        refundMoney = false;
+      } else {
+        // User cancelled / closed modal -> revert select
+        event.target.value = appt.status;
+        return;
+      }
+    } else {
+      const confirmed = await alerts.confirm(
+        'تأكيد إلغاء الحجز',
+        `هل أنت متأكد من إلغاء حجز المريض ${appt.patient?.name || ''}؟`,
+        'نعم، إلغاء الحجز'
+      );
+      if (!confirmed) {
+        event.target.value = appt.status;
+        return;
+      }
+    }
+
+    processingId.value = appt.id;
+    try {
+      await queueStore.updateStatus(appt.id, 'cancelled', false, refundMoney);
+      if (refundMoney) {
+        alerts.success('تم إلغاء الحجز والاسترداد', `تم إلغاء الحجز واسترداد مبلغ ${totalPaid} ج.م وخصمه من الخزينة بنجاح`);
+      } else {
+        alerts.toast('تم إلغاء الحجز بنجاح');
+      }
+      emit('refresh');
+    } catch (e) {
+      event.target.value = appt.status;
+      alerts.error('فشل إلغاء الحجز', e.response?.data?.message || 'حدث خطأ أثناء الاتصال بالسيرفر');
+    } finally {
+      processingId.value = null;
+    }
+    return;
+  }
+
+  // Normal status transition
+  processingId.value = appt.id;
   try {
-    await queueStore.updateStatus(appointmentId, newStatus);
+    await queueStore.updateStatus(appt.id, newStatus);
     alerts.toast('تم تحديث حالة المريض بنجاح');
     emit('refresh');
   } catch (e) {
+    event.target.value = appt.status;
     alerts.error('فشل تحديث الحالة', e.response?.data?.message || 'حدث خطأ أثناء الاتصال بالسيرفر');
+  } finally {
+    processingId.value = null;
+  }
+};
+
+const handleRefundExistingCancelled = async (appt) => {
+  const feePaid = appt.is_paid ? Number(appt.consultation_fee ?? appt.fee ?? 0) : 0;
+  const extraPaid = appt.extra_services_paid ? Number(appt.extra_services_total || 0) : 0;
+  const totalPaid = feePaid + extraPaid;
+
+  const confirmed = await alerts.confirm(
+    'استرداد المبلغ وإخراجه من الخزينة',
+    `هل تريد تأكيد استرداد مبلغ ${totalPaid} ج.م نقداً للمريض ${appt.patient?.name || ''} وخصمه من الخزينة؟`,
+    'نعم، استرداد المبلغ الآن'
+  );
+  if (!confirmed) return;
+
+  processingId.value = appt.id;
+  try {
+    await queueStore.updateStatus(appt.id, 'cancelled', false, true);
+    alerts.success('تم الاسترداد بنجاح', `تم استرداد مبلغ ${totalPaid} ج.م وإخراجه من الخزينة بنجاح`);
+    emit('refresh');
+  } catch (e) {
+    alerts.error('فشل استرداد المبلغ', e.response?.data?.message || 'حدث خطأ');
   } finally {
     processingId.value = null;
   }
@@ -158,11 +235,25 @@ const handleMarkPaid = async (appointmentId) => {
               </div>
               <div class="mt-1">
                 <span
-                  v-if="appt.is_paid"
+                  v-if="appt.is_paid && appt.status !== 'cancelled'"
                   class="inline-flex items-center gap-1 text-[10px] text-status-success font-bold"
                 >
                   <CheckCircle2 class="w-3 h-3" /> تم السداد
                 </span>
+                <div v-else-if="appt.is_paid && appt.status === 'cancelled'" class="flex items-center gap-1.5 flex-wrap">
+                  <span class="inline-flex items-center gap-1 text-[10px] text-amber-500 font-bold">
+                    مسدد (معلق استرداد)
+                  </span>
+                  <button
+                    type="button"
+                    @click="handleRefundExistingCancelled(appt)"
+                    :disabled="processingId === appt.id"
+                    class="text-[10px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 px-1.5 py-0.5 rounded border border-amber-500/30 font-bold cursor-pointer transition"
+                    title="استرداد المبلغ وإخراجه من الخزينة"
+                  >
+                    استرداد الآن
+                  </button>
+                </div>
                 <button
                   v-else
                   type="button"
@@ -227,7 +318,7 @@ const handleMarkPaid = async (appointmentId) => {
             <td class="py-3 px-3.5 text-center">
               <select
                 :value="appt.status"
-                @change="handleStatusChange(appt.id, $event.target.value)"
+                @change="handleStatusChange(appt, $event)"
                 :disabled="processingId === appt.id"
                 class="px-2 py-1 text-[11px] font-bold bg-surface-elevated text-content-primary border border-line-subtle rounded-lg focus:outline-none focus:border-brand cursor-pointer"
               >

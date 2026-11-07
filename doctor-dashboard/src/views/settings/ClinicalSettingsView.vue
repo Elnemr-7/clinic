@@ -365,14 +365,25 @@
               <th class="py-2.5 px-3">الجرعة الافتراضية</th>
               <th class="py-2.5 px-3">التكرار</th>
               <th class="py-2.5 px-3">التعليمات</th>
+              <th class="py-2.5 px-3 text-center w-12">إجراء</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-line-subtle">
             <tr v-for="d in settingsStore.drugs" :key="d.id" class="hover:bg-surface-card/60 transition">
-              <td class="py-2 px-3 font-bold text-content-primary">{{ d.name }}</td>
+              <td class="py-2 px-3 font-bold text-content-primary">{{ d.name || d.drug_name }}</td>
               <td class="py-2 px-3 text-content-secondary">{{ d.default_dosage || '-' }}</td>
-              <td class="py-2 px-3 text-content-secondary">{{ d.default_frequency || '-' }}</td>
-              <td class="py-2 px-3 text-content-muted">{{ d.default_instructions || '-' }}</td>
+              <td class="py-2 px-3 text-content-secondary">{{ d.default_frequency || d.default_duration || '-' }}</td>
+              <td class="py-2 px-3 text-content-muted">{{ d.default_instructions || d.notes || '-' }}</td>
+              <td class="py-2 px-3 text-center">
+                <button
+                  type="button"
+                  @click="handleDeleteDrug(d.id)"
+                  class="p-1 text-content-muted hover:text-status-danger hover:bg-status-danger-bg rounded-lg transition cursor-pointer"
+                  title="حذف هذا الدواء"
+                >
+                  <Trash2 class="w-3.5 h-3.5" />
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -436,8 +447,21 @@
         <p class="text-xs text-content-muted">إنشاء بروتوكولات علاجية مسبقة لإدراج مجموعة أدوية وتشخيص بضغطة واحدة</p>
       </div>
 
-      <div class="bg-surface-elevated border border-line-subtle p-4 rounded-2xl space-y-3">
-        <h4 class="text-xs font-bold text-content-primary">إنشاء نموذج جديد</h4>
+      <div ref="templateFormRef" class="bg-surface-elevated border border-line-subtle p-4 rounded-2xl space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="text-xs font-bold text-content-primary flex items-center gap-1.5">
+            <Sparkles class="w-3.5 h-3.5 text-brand" />
+            {{ editingTemplateId ? 'تعديل نموذج الروشتة' : 'إنشاء نموذج جديد' }}
+          </h4>
+          <button
+            v-if="editingTemplateId"
+            type="button"
+            @click="cancelEditTemplate"
+            class="text-[11px] text-content-muted hover:text-content-primary underline cursor-pointer"
+          >
+            إلغاء التعديل
+          </button>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <input
             v-model="newTemplate.template_name"
@@ -495,13 +519,22 @@
           </button>
         </div>
 
-        <div class="pt-3 border-t border-line-subtle flex justify-end">
+        <div class="pt-3 border-t border-line-subtle flex items-center justify-end gap-2">
+          <button
+            v-if="editingTemplateId"
+            type="button"
+            @click="cancelEditTemplate"
+            class="px-4 py-2 border border-line-subtle hover:bg-surface-card text-content-secondary rounded-xl text-xs font-medium cursor-pointer"
+          >
+            إلغاء
+          </button>
           <button
             type="button"
             @click="handleSaveTemplate"
-            class="px-5 py-2 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+            class="px-5 py-2 bg-brand hover:bg-brand-hover text-content-inverse rounded-xl text-xs font-bold shadow-xs cursor-pointer inline-flex items-center gap-1.5"
           >
-            حفظ نموذج الروشتة
+            <Save class="w-3.5 h-3.5" />
+            {{ editingTemplateId ? 'تحديث وحفظ التعديلات' : 'حفظ نموذج الروشتة' }}
           </button>
         </div>
       </div>
@@ -511,21 +544,36 @@
         <div
           v-for="tpl in settingsStore.templates"
           :key="tpl.id"
-          class="p-4 bg-surface-elevated border border-line-subtle rounded-2xl flex flex-col justify-between"
+          class="p-4 bg-surface-elevated border rounded-2xl flex flex-col justify-between transition-colors"
+          :class="editingTemplateId === tpl.id ? 'border-brand ring-1 ring-brand' : 'border-line-subtle'"
         >
           <div>
-            <h4 class="text-xs font-bold text-content-primary">{{ tpl.template_name }}</h4>
-            <p class="text-[11px] text-brand font-medium mt-0.5">{{ tpl.diagnosis_default || 'بدون تشخيص' }}</p>
+            <div class="flex items-start justify-between gap-2">
+              <h4 class="text-xs font-bold text-content-primary">{{ tpl.template_name || tpl.name }}</h4>
+              <span v-if="editingTemplateId === tpl.id" class="px-2 py-0.5 text-[10px] bg-brand/10 text-brand rounded-full font-bold">
+                قيد التعديل
+              </span>
+            </div>
+            <p class="text-[11px] text-brand font-medium mt-0.5">{{ tpl.diagnosis_default || tpl.diagnosis || 'بدون تشخيص' }}</p>
             <p class="text-[10px] text-content-muted mt-2">
-              الأدوية: {{ (tpl.drugs_json || []).map(d => d.drug_name).join('، ') }}
+              الأدوية: {{ ((tpl.drugs_json || tpl.drugs_payload || []).map(d => d.drug_name).filter(Boolean).join('، ')) || 'لا توجد أدوية' }}
             </p>
           </div>
-          <div class="mt-3 pt-2 border-t border-line-subtle flex justify-end">
+          <div class="mt-3 pt-2 border-t border-line-subtle flex items-center justify-between">
             <button
               type="button"
-              @click="settingsStore.deleteTemplate(tpl.id)"
-              class="text-[11px] text-status-danger hover:underline font-bold"
+              @click="handleEditTemplate(tpl)"
+              class="inline-flex items-center gap-1 text-[11px] text-brand hover:underline font-bold cursor-pointer"
             >
+              <Pencil class="w-3 h-3" />
+              تعديل النموذج
+            </button>
+            <button
+              type="button"
+              @click="handleDeleteTemplate(tpl.id)"
+              class="inline-flex items-center gap-1 text-[11px] text-status-danger hover:underline font-bold cursor-pointer"
+            >
+              <Trash2 class="w-3 h-3" />
               حذف النموذج
             </button>
           </div>
@@ -549,6 +597,7 @@ import {
   Plus,
   Save,
   Trash2,
+  Pencil,
 } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
@@ -587,11 +636,54 @@ const newDrug = ref({
 
 const newLab = ref({ name: '', category: 'lab' });
 
+const editingTemplateId = ref(null);
+const templateFormRef = ref(null);
+
 const newTemplate = ref({
   template_name: '',
   diagnosis_default: '',
   drugs_json: [{ drug_name: '', dosage: '', instructions: '' }],
 });
+
+const handleEditTemplate = (tpl) => {
+  editingTemplateId.value = tpl.id;
+  const drugs = Array.isArray(tpl.drugs_json) && tpl.drugs_json.length > 0
+    ? tpl.drugs_json
+    : (Array.isArray(tpl.drugs_payload) && tpl.drugs_payload.length > 0 ? tpl.drugs_payload : []);
+
+  newTemplate.value = {
+    template_name: tpl.template_name || tpl.name || '',
+    diagnosis_default: tpl.diagnosis_default || tpl.diagnosis || '',
+    drugs_json: drugs.length > 0
+      ? JSON.parse(JSON.stringify(drugs))
+      : [{ drug_name: '', dosage: '', instructions: '' }],
+  };
+
+  templateFormRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
+const cancelEditTemplate = () => {
+  editingTemplateId.value = null;
+  newTemplate.value = {
+    template_name: '',
+    diagnosis_default: '',
+    drugs_json: [{ drug_name: '', dosage: '', instructions: '' }],
+  };
+};
+
+const handleDeleteTemplate = async (id) => {
+  const confirmed = await alerts.confirm('تأكيد الحذف', 'هل أنت متأكد من حذف هذا النموذج؟', 'نعم، احذف');
+  if (!confirmed) return;
+  try {
+    await settingsStore.deleteTemplate(id);
+    if (editingTemplateId.value === id) {
+      cancelEditTemplate();
+    }
+    alerts.toast('تم حذف النموذج بنجاح');
+  } catch (e) {
+    alerts.error('فشل حذف النموذج', e.response?.data?.message || 'حدث خطأ');
+  }
+};
 
 const addTemplateDrugRow = () => {
   newTemplate.value.drugs_json.push({ drug_name: '', dosage: '', instructions: '' });
@@ -606,14 +698,17 @@ const removeTemplateDrugRow = (idx) => {
 
 onMounted(async () => {
   await settingsStore.fetchAll();
-  if (settingsStore.settings?.vitals_config) {
-    const cfg = settingsStore.settings.vitals_config;
-    if (Array.isArray(cfg)) {
-      vitalsList.value = cfg;
-    }
+  const cfg = settingsStore.settings?.vitals_config
+    || settingsStore.settings?.tenant?.vitals_config
+    || authStore.tenant?.vitals_config;
+  if (Array.isArray(cfg) && cfg.length > 0) {
+    vitalsList.value = cfg;
   }
-  if (settingsStore.settings?.print_settings) {
-    printMargins.value = { ...printMargins.value, ...settingsStore.settings.print_settings };
+  const printCfg = settingsStore.settings?.print_settings
+    || settingsStore.settings?.tenant?.print_settings
+    || authStore.tenant?.print_settings;
+  if (printCfg) {
+    printMargins.value = { ...printMargins.value, ...printCfg };
   }
 });
 
@@ -638,11 +733,28 @@ const saveVitals = async () => {
   try {
     await settingsStore.updateVitals(vitalsList.value);
     await authStore.fetchProfile();
+    const cfg = settingsStore.settings?.vitals_config
+      || settingsStore.settings?.tenant?.vitals_config
+      || authStore.tenant?.vitals_config;
+    if (Array.isArray(cfg) && cfg.length > 0) {
+      vitalsList.value = cfg;
+    }
     alerts.success('تم الحفظ بنجاح', 'تم تحديث قائمة القياسات الحيوية وسيرى موظف الاستقبال القياسات الجديدة فوراً');
   } catch (e) {
     alerts.error('فشل حفظ الإعدادات', e.response?.data?.message || 'حدث خطأ');
   } finally {
     saving.value = false;
+  }
+};
+
+const handleDeleteDrug = async (id) => {
+  const confirmed = await alerts.confirm('تأكيد الحذف', 'هل أنت متأكد من حذف هذا الدواء من الكتالوج؟', 'نعم، احذف');
+  if (!confirmed) return;
+  try {
+    await settingsStore.deleteDrug(id);
+    alerts.toast('تم حذف الدواء بنجاح');
+  } catch (e) {
+    alerts.error('فشل حذف الدواء', e.response?.data?.message || 'حدث خطأ');
   }
 };
 
@@ -693,9 +805,31 @@ const handleSaveLab = async () => {
 };
 
 const handleSaveTemplate = async () => {
-  if (!newTemplate.value.template_name.trim()) return;
-  await settingsStore.saveTemplate(newTemplate.value);
-  newTemplate.value = { template_name: '', diagnosis_default: '', drugs_json: [{ drug_name: '', dosage: '', instructions: '' }] };
-  alerts.toast('تم حفظ النموذج بنجاح');
+  if (!newTemplate.value.template_name?.trim()) {
+    alerts.toast('يرجى إدخال اسم النموذج');
+    return;
+  }
+
+  const cleanDrugs = (newTemplate.value.drugs_json || []).filter(
+    d => (d.drug_name && d.drug_name.trim()) || (d.dosage && d.dosage.trim()) || (d.instructions && d.instructions.trim())
+  );
+
+  const payload = {
+    template_name: newTemplate.value.template_name.trim(),
+    diagnosis_default: newTemplate.value.diagnosis_default?.trim() || '',
+    drugs_json: cleanDrugs.length > 0 ? cleanDrugs : [{ drug_name: '', dosage: '', instructions: '' }],
+  };
+
+  if (editingTemplateId.value) {
+    payload.id = editingTemplateId.value;
+  }
+
+  try {
+    await settingsStore.saveTemplate(payload);
+    alerts.toast(editingTemplateId.value ? 'تم تحديث نموذج الروشتة بنجاح' : 'تم حفظ نموذج الروشتة بنجاح');
+    cancelEditTemplate();
+  } catch (e) {
+    alerts.error('فشل حفظ النموذج', e.response?.data?.message || 'حدث خطأ أثناء حفظ النموذج');
+  }
 };
 </script>

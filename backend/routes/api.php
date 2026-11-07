@@ -107,6 +107,7 @@ Route::prefix('clinic')->group(function () {
 
             Route::get('/drugs', [\App\Http\Controllers\Clinic\SettingsController::class, 'getDrugs']);
             Route::post('/drugs', [\App\Http\Controllers\Clinic\SettingsController::class, 'saveDrug']);
+            Route::delete('/drugs/{id}', [\App\Http\Controllers\Clinic\SettingsController::class, 'deleteDrug']);
 
             Route::get('/services', [\App\Http\Controllers\Clinic\SettingsController::class, 'getServices']);
             Route::get('/templates', [\App\Http\Controllers\Clinic\SettingsController::class, 'getTemplates']);

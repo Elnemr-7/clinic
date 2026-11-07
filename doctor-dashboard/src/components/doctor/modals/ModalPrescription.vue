@@ -185,7 +185,8 @@ const handleSave = async (actionType = 'save') => {
     const res = await workspaceStore.savePrescription(props.appointment.id, payload);
 
     if (actionType === 'print') {
-      const pdfUrl = res.data?.pdf_url || `/rx/${res.data?.consultation?.pdf_short_token}`;
+      const token = res.data?.consultation?.pdf_short_token;
+      const pdfUrl = token ? `/rx/${token}` : (res.data?.pdf_url || '/');
       window.open(pdfUrl, '_blank');
     }
 

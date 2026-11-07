@@ -56,6 +56,11 @@ export const useSettingsStore = defineStore('settings', {
       const res = await client.get('/settings/drugs');
       this.drugs = res.data.data;
     },
+    async deleteDrug(id) {
+      await client.delete(`/settings/drugs/${id}`);
+      const res = await client.get('/settings/drugs');
+      this.drugs = res.data.data;
+    },
     async saveTemplate(template) {
       await client.post('/settings/templates', template);
       const res = await client.get('/settings/templates');

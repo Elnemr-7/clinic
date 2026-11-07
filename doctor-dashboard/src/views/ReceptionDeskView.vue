@@ -223,7 +223,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useReceptionQueueStore } from '../stores/receptionQueue';
 import LiveQueueTable from '../components/reception/LiveQueueTable.vue';
@@ -331,8 +331,11 @@ const manualRefresh = async () => {
   await queueStore.fetchQueue(selectedClinicId.value, selectedDate.value);
 };
 
-const handleOpenVitals = (appt) => {
+const handleOpenVitals = async (appt) => {
   selectedVitalsAppointment.value = appt;
+  if (!vitalsSchema.value || vitalsSchema.value.length === 0) {
+    try { await authStore.fetchProfile(); } catch (e) {}
+  }
   showVitalsModal.value = true;
 };
 
@@ -347,8 +350,17 @@ const handleKeyDown = (e) => {
   }
 };
 
+watch(selectedClinicId, (newId, oldId) => {
+  if (newId && newId !== oldId) {
+    queueStore.fetchQueue(newId, selectedDate.value);
+  }
+});
+
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown);
+  if (!authStore.user) {
+    try { await authStore.fetchProfile(); } catch (e) {}
+  }
   await manualRefresh();
 
   // Background silent polling every 12 seconds (no screen flash or loading spinner)

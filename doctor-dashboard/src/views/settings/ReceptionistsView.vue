@@ -33,7 +33,10 @@
             {{ rec.name?.substring(0, 2) }}
           </div>
           <div>
-            <h3 class="text-xs font-black text-content-primary">{{ rec.name }}</h3>
+            <div class="flex items-center gap-2">
+              <h3 class="text-xs font-black text-content-primary">{{ rec.name }}</h3>
+              <span v-if="rec.phone" class="text-[10px] text-content-muted font-mono" dir="ltr">{{ rec.phone }}</span>
+            </div>
             <p class="text-[11px] text-content-muted font-mono">{{ rec.email }}</p>
             <p class="text-[10px] text-brand font-medium mt-0.5">
               فرع: {{ rec.clinic?.name || rec.clinic?.name_ar || 'كافة الفروع' }}
@@ -42,13 +45,24 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-status-success-bg text-status-success font-bold">
-            نشط
+          <span
+            class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+            :class="rec.is_active !== false ? 'bg-status-success-bg text-status-success' : 'bg-status-warning-bg text-status-warning'"
+          >
+            {{ rec.is_active !== false ? 'نشط' : 'معطل' }}
           </span>
           <button
             type="button"
+            @click="openEditModal(rec)"
+            class="text-content-muted hover:text-brand p-1.5 rounded-lg hover:bg-surface-card transition cursor-pointer"
+            title="تعديل بيانات الموظف"
+          >
+            <Pencil class="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
             @click="handleDelete(rec.id)"
-            class="text-content-muted hover:text-status-danger p-1 rounded-lg transition cursor-pointer"
+            class="text-content-muted hover:text-status-danger p-1.5 rounded-lg hover:bg-surface-card transition cursor-pointer"
             title="حذف الحساب"
           >
             <Trash2 class="w-3.5 h-3.5" />
@@ -57,18 +71,18 @@
       </div>
     </div>
 
-    <!-- Modal: Add Receptionist -->
-    <div v-if="showAddModal" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <!-- Modal: Add / Edit Receptionist -->
+    <div v-if="showModal" class="fixed inset-0 z-50 overflow-y-auto bg-surface-overlay/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div class="bg-surface-card border border-line-subtle rounded-2xl shadow-xl w-full max-w-md overflow-hidden text-right animate-scale-in" dir="rtl">
         <div class="px-5 py-3.5 bg-brand text-content-inverse font-bold text-sm flex items-center justify-between">
-          <span>إضافة موظف استقبال جديد</span>
+          <span>{{ isEditing ? 'تعديل بيانات موظف الاستقبال' : 'إضافة موظف استقبال جديد' }}</span>
           <span class="text-xs opacity-80">{{ settingsStore.branches?.length || 0 }} فرع متاح</span>
         </div>
         <div class="p-5 space-y-3.5">
           <div>
             <label class="block text-xs font-bold text-content-primary mb-1">الاسم بالكامل <span class="text-status-danger">*</span></label>
             <input
-              v-model="newRec.name"
+              v-model="recForm.name"
               type="text"
               placeholder="مثال: سارة أحمد..."
               class="w-full px-3 py-2 text-xs bg-surface-elevated rounded-xl border border-line-subtle text-content-primary focus:border-brand focus:outline-hidden"
@@ -77,7 +91,7 @@
           <div>
             <label class="block text-xs font-bold text-content-primary mb-1">البريد الإلكتروني للدخول <span class="text-status-danger">*</span></label>
             <input
-              v-model="newRec.email"
+              v-model="recForm.email"
               type="email"
               placeholder="sara@clinic.com"
               class="w-full px-3 py-2 text-xs bg-surface-elevated rounded-xl border border-line-subtle text-content-primary font-mono focus:border-brand focus:outline-hidden"
@@ -86,18 +100,20 @@
           <div>
             <label class="block text-xs font-bold text-content-primary mb-1">رقم الهاتف</label>
             <input
-              v-model="newRec.phone"
+              v-model="recForm.phone"
               type="tel"
               placeholder="010XXXXXXXX"
               class="w-full px-3 py-2 text-xs bg-surface-elevated rounded-xl border border-line-subtle text-content-primary font-mono focus:border-brand focus:outline-hidden"
             />
           </div>
           <div>
-            <label class="block text-xs font-bold text-content-primary mb-1">كلمة المرور <span class="text-status-danger">*</span></label>
+            <label class="block text-xs font-bold text-content-primary mb-1">
+              {{ isEditing ? 'كلمة المرور الجديدة (اختياري)' : 'كلمة المرور *' }}
+            </label>
             <input
-              v-model="newRec.password"
+              v-model="recForm.password"
               type="password"
-              placeholder="••••••••"
+              :placeholder="isEditing ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية' : '••••••••'"
               class="w-full px-3 py-2 text-xs bg-surface-elevated rounded-xl border border-line-subtle text-content-primary font-mono focus:border-brand focus:outline-hidden"
             />
           </div>
@@ -106,7 +122,7 @@
               الفرع المخصص <span class="text-status-danger">*</span>
             </label>
             <select
-              v-model="newRec.clinic_id"
+              v-model="recForm.clinic_id"
               class="w-full px-3 py-2 text-xs bg-surface-elevated rounded-xl border border-line-subtle text-content-primary focus:border-brand focus:outline-hidden cursor-pointer"
             >
               <option :value="null" disabled>-- اختر الفرع المخصص لهذا الموظف --</option>
@@ -122,11 +138,22 @@
               ⚠️ لا توجد فروع مسجلة حالياً. يرجى التوجه لتبويب "الفروع والورديات" وإضافة فرع أولاً.
             </p>
           </div>
+          <div v-if="isEditing" class="flex items-center gap-2 pt-1">
+            <input
+              id="rec-is-active"
+              v-model="recForm.is_active"
+              type="checkbox"
+              class="rounded border-line-subtle text-brand focus:ring-brand cursor-pointer"
+            />
+            <label for="rec-is-active" class="text-xs font-bold text-content-primary cursor-pointer">
+              الحساب نشط ويستطيع تسجيل الدخول
+            </label>
+          </div>
         </div>
         <div class="px-5 py-3 bg-surface-elevated border-t border-line-subtle flex justify-between items-center">
           <button
             type="button"
-            @click="showAddModal = false"
+            @click="showModal = false"
             class="px-4 py-2 text-xs font-bold text-content-secondary hover:text-content-primary cursor-pointer"
           >
             إلغاء
@@ -134,11 +161,11 @@
           <button
             type="button"
             @click="handleSave"
-            :disabled="saving || !newRec.clinic_id"
+            :disabled="saving || !recForm.clinic_id"
             class="px-5 py-2 bg-brand hover:bg-brand-hover disabled:opacity-50 text-content-inverse rounded-xl text-xs font-bold transition cursor-pointer shadow-xs"
           >
             <span v-if="saving">جاري الحفظ...</span>
-            <span v-else>حفظ الموظف</span>
+            <span v-else>{{ isEditing ? 'حفظ التعديلات' : 'حفظ الموظف' }}</span>
           </button>
         </div>
       </div>
@@ -150,61 +177,82 @@
 import { ref, onMounted } from 'vue';
 import { useSettingsStore } from '../../stores/settings';
 import alerts from '../../utils/alerts';
-import { UserPlus, Trash2 } from 'lucide-vue-next';
+import { UserPlus, Trash2, Pencil } from 'lucide-vue-next';
 
 const settingsStore = useSettingsStore();
 
-const showAddModal = ref(false);
+const showModal = ref(false);
+const isEditing = ref(false);
 const saving = ref(false);
 
-const newRec = ref({
+const recForm = ref({
+  id: null,
   name: '',
   email: '',
   phone: '',
   password: '',
   clinic_id: null,
+  is_active: true,
 });
 
 onMounted(async () => {
   await settingsStore.fetchAll();
-  if (settingsStore.branches?.length > 0 && !newRec.value.clinic_id) {
-    newRec.value.clinic_id = settingsStore.branches[0].id;
-  }
 });
 
 const openAddModal = async () => {
   if (!settingsStore.branches || settingsStore.branches.length === 0) {
     await settingsStore.fetchBranches();
   }
-  if (settingsStore.branches?.length > 0 && !newRec.value.clinic_id) {
-    newRec.value.clinic_id = settingsStore.branches[0].id;
+  isEditing.value = false;
+  recForm.value = {
+    id: null,
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    clinic_id: settingsStore.branches?.[0]?.id || null,
+    is_active: true,
+  };
+  showModal.value = true;
+};
+
+const openEditModal = async (rec) => {
+  if (!settingsStore.branches || settingsStore.branches.length === 0) {
+    await settingsStore.fetchBranches();
   }
-  showAddModal.value = true;
+  isEditing.value = true;
+  recForm.value = {
+    id: rec.id,
+    name: rec.name || '',
+    email: rec.email || '',
+    phone: rec.phone || '',
+    password: '',
+    clinic_id: rec.clinic_id || rec.clinic?.id || settingsStore.branches?.[0]?.id || null,
+    is_active: rec.is_active !== false,
+  };
+  showModal.value = true;
 };
 
 const handleSave = async () => {
-  if (!newRec.value.name.trim() || !newRec.value.email.trim() || !newRec.value.password) {
-    alerts.warning('يرجى استكمال جميع البيانات المطلوبة');
+  if (!recForm.value.name.trim() || !recForm.value.email.trim()) {
+    alerts.warning('يرجى إدخال اسم الموظف والبريد الإلكتروني');
     return;
   }
-  if (!newRec.value.clinic_id) {
+  if (!isEditing.value && !recForm.value.password) {
+    alerts.warning('يرجى إدخال كلمة المرور لموظف الاستقبال الجديد');
+    return;
+  }
+  if (!recForm.value.clinic_id) {
     alerts.warning('يرجى اختيار الفرع المخصص لموظف الاستقبال');
     return;
   }
   saving.value = true;
   try {
-    await settingsStore.saveReceptionist(newRec.value);
-    showAddModal.value = false;
-    newRec.value = {
-      name: '',
-      email: '',
-      phone: '',
-      password: '',
-      clinic_id: settingsStore.branches?.[0]?.id || null,
-    };
-    alerts.success('تمت إضافة موظف الاستقبال بنجاح');
+    await settingsStore.saveReceptionist(recForm.value);
+    showModal.value = false;
+    alerts.success(isEditing.value ? 'تم تحديث بيانات موظف الاستقبال بنجاح' : 'تمت إضافة موظف الاستقبال بنجاح');
   } catch (e) {
-    alerts.error('فشل إضافة الموظف', e.response?.data?.message || 'حدث خطأ');
+    alerts.error('فشل الحفظ', e.response?.data?.message || 'حدث خطأ أثناء حفظ البيانات');
   } finally {
     saving.value = false;
   }

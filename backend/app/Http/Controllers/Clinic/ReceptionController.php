@@ -35,11 +35,17 @@ class ReceptionController extends Controller
 
     public function queue(Request $request): JsonResponse
     {
-        $clinicId = $request->input('clinic_id') ?? $request->user()->clinic_id;
+        $tenantId = $request->user()->tenant_id;
+        $clinicId = $request->input('clinic_id');
+        if (!$clinicId || $clinicId === 'null' || $clinicId === 'undefined') {
+            $clinicId = $request->user()->clinic_id ?: Clinic::where('tenant_id', $tenantId)->value('id');
+        }
+
         $date = $request->input('date', today()->toDateString());
         $shiftId = $request->input('shift_id');
 
-        $query = Appointment::where('clinic_id', $clinicId)
+        $query = Appointment::where('tenant_id', $tenantId)
+            ->where('clinic_id', $clinicId)
             ->whereDate('appointment_date', $date)
             ->with(['patient', 'shift', 'consultation'])
             ->orderBy('queue_number', 'asc');
@@ -198,33 +204,51 @@ class ReceptionController extends Controller
     public function updateStatus(int $appointmentId, Request $request): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:arrived_waiting,in_consultation,postponed_waiting_arrival,completed,cancelled',
+            'status' => 'nullable|in:booked,arrived_waiting,in_consultation,postponed_waiting_arrival,completed,cancelled',
             'mark_paid' => 'nullable|boolean',
+            'refund_money' => 'nullable|boolean',
         ]);
 
         return DB::transaction(function () use ($appointmentId, $request) {
             $appointment = Appointment::where('id', $appointmentId)->lockForUpdate()->firstOrFail();
             $oldStatus = $appointment->status;
-            $newStatus = $request->status;
+            $newStatus = $request->status ?: $oldStatus;
 
             $appointment->status = $newStatus;
 
-            if ($request->boolean('mark_paid') || $newStatus === 'arrived_waiting') {
+            if ($request->boolean('mark_paid')) {
                 if (!$appointment->is_paid) {
                     $appointment->is_paid = true;
 
-                    // Log into cashbox
-                    CashTransaction::create([
-                        'tenant_id' => $appointment->tenant_id,
-                        'clinic_id' => $appointment->clinic_id,
-                        'appointment_id' => $appointment->id,
-                        'created_by_user_id' => $request->user()->id,
-                        'type' => 'income',
-                        'category' => $appointment->visit_type === 'followup' ? 'followup' : 'consultation',
-                        'amount' => $appointment->consultation_fee,
-                        'description_ar' => "تحصيل كشف المريض: {$appointment->patient->name} (رقم #{$appointment->queue_number})",
-                        'transaction_date' => today(),
-                    ]);
+                    // Ensure no duplicate income transaction for this appointment
+                    $existing = CashTransaction::where('appointment_id', $appointment->id)
+                        ->where('type', 'income')
+                        ->whereIn('category', ['consultation', 'followup'])
+                        ->first();
+
+                    if (!$existing) {
+                        CashTransaction::create([
+                            'tenant_id' => $appointment->tenant_id,
+                            'clinic_id' => $appointment->clinic_id,
+                            'appointment_id' => $appointment->id,
+                            'created_by_user_id' => $request->user()->id,
+                            'type' => 'income',
+                            'category' => $appointment->visit_type === 'followup' ? 'followup' : 'consultation',
+                            'amount' => $appointment->consultation_fee,
+                            'description_ar' => "تحصيل كشف المريض: {$appointment->patient->name} (رقم #{$appointment->queue_number})",
+                            'transaction_date' => today(),
+                        ]);
+                    }
+                }
+            }
+
+            if ($newStatus === 'cancelled') {
+                if ($request->boolean('refund_money')) {
+                    // Reversal: remove cash transactions for this appointment so money is not counted in adding or subtracting
+                    CashTransaction::where('appointment_id', $appointment->id)->delete();
+
+                    $appointment->is_paid = false;
+                    $appointment->extra_services_paid = false;
                 }
             }
 
@@ -268,18 +292,25 @@ class ReceptionController extends Controller
             'extra_services_paid' => true,
         ]);
 
-        // Log into cashbox
-        CashTransaction::create([
-            'tenant_id' => $appointment->tenant_id,
-            'clinic_id' => $appointment->clinic_id,
-            'appointment_id' => $appointment->id,
-            'created_by_user_id' => $request->user()->id,
-            'type' => 'income',
-            'category' => 'medical_service',
-            'amount' => $appointment->extra_services_total,
-            'description_ar' => "تحصيل خدمات إضافية للمريض: {$appointment->patient->name} (رقم #{$appointment->queue_number})",
-            'transaction_date' => today(),
-        ]);
+        // Log into cashbox (deduplicated)
+        $existing = CashTransaction::where('appointment_id', $appointment->id)
+            ->where('type', 'income')
+            ->where('category', 'medical_service')
+            ->first();
+
+        if (!$existing) {
+            CashTransaction::create([
+                'tenant_id' => $appointment->tenant_id,
+                'clinic_id' => $appointment->clinic_id,
+                'appointment_id' => $appointment->id,
+                'created_by_user_id' => $request->user()->id,
+                'type' => 'income',
+                'category' => 'medical_service',
+                'amount' => $appointment->extra_services_total,
+                'description_ar' => "تحصيل خدمات إضافية للمريض: {$appointment->patient->name} (رقم #{$appointment->queue_number})",
+                'transaction_date' => today(),
+            ]);
+        }
 
         return $this->successResponse($appointment, 'تم تحصيل قيمة الخدمات الإضافية وإيداعها بالخزينة بنجاح');
     }
