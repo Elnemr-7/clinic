@@ -271,13 +271,17 @@ class SettingsController extends Controller
         $tenant = $request->user()->tenant;
         $id = $request->input('id');
 
+        $clinic = $id ? Clinic::where('tenant_id', $tenant->id)->find($id) : null;
+
         // Correction 5: Check Plan Limit
-        if (!$id) {
+        if (!$clinic) {
             $allowed = $tenant->max_clinics_override ?? $tenant->plan->max_clinics;
             if ($allowed !== -1 && $tenant->clinics()->count() >= $allowed) {
                 return $this->errorResponse("لقد وصلت للحد الأقصى لعدد العيادات المسموح به في باقتك الحالية ({$allowed} عيادات). يرجى ترقية الباقة أو التواصل مع إدارة المنصة.", null, 403);
             }
         }
+
+        $tvScreenCode = $clinic?->tv_screen_code ?? strtoupper(Str::random(6));
 
         $clinic = Clinic::updateOrCreate(
             ['id' => $id, 'tenant_id' => $tenant->id],
@@ -293,7 +297,7 @@ class SettingsController extends Controller
                 'avg_consultation_minutes' => $request->avg_consultation_minutes ?? 15,
                 'booking_payment_mode' => $request->booking_payment_mode ?? 'pay_at_clinic',
                 'prepayment_instructions_ar' => $request->prepayment_instructions_ar,
-                'tv_screen_code' => $clinic?->tv_screen_code ?? strtoupper(Str::random(6)),
+                'tv_screen_code' => $tvScreenCode,
                 'is_active' => $request->boolean('is_active', true),
             ]
         );

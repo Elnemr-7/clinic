@@ -21,8 +21,8 @@ class QueueTimeCalculatorService
         $windowEnd = $windowStart->copy()->addMinutes(30);
 
         return [
-            'estimated_window_start' => $windowStart->format('Y-m-d H:i:s'),
-            'estimated_window_end' => $windowEnd->format('Y-m-d H:i:s'),
+            'estimated_window_start' => $windowStart->format('H:i:s'),
+            'estimated_window_end' => $windowEnd->format('H:i:s'),
         ];
     }
 
@@ -57,8 +57,8 @@ class QueueTimeCalculatorService
             $itemEnd = $itemStart->copy()->addMinutes(30);
 
             $item->update([
-                'estimated_window_start' => $itemStart->format('Y-m-d H:i:s'),
-                'estimated_window_end' => $itemEnd->format('Y-m-d H:i:s'),
+                'estimated_window_start' => $itemStart->format('H:i:s'),
+                'estimated_window_end' => $itemEnd->format('H:i:s'),
             ]);
         }
 

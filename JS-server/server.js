@@ -160,6 +160,58 @@ function getSessionDir(sessionId) {
     return path.join(AUTH_BASE_DIR, cleanId.startsWith('session_') ? cleanId : `session_${cleanId}`);
 }
 
+const SAFE_PDF_DIR = path.resolve(__dirname, 'storage/temp');
+if (!fs.existsSync(SAFE_PDF_DIR)) {
+    try {
+        fs.mkdirSync(SAFE_PDF_DIR, { recursive: true });
+    } catch (e) {}
+}
+
+function isSafePdfUrl(urlString) {
+    try {
+        const parsed = new URL(urlString);
+        if (parsed.protocol !== 'https:') {
+            return false;
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+
+        // Block localhost
+        if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+            return false;
+        }
+
+        // Block 127.0.0.1 and loopback
+        if (hostname === '127.0.0.1' || hostname.startsWith('127.')) {
+            return false;
+        }
+
+        // Block 10.x.x.x
+        if (hostname.startsWith('10.')) {
+            return false;
+        }
+
+        // Block 192.168.x.x
+        if (hostname.startsWith('192.168.')) {
+            return false;
+        }
+
+        // Block 169.254.169.254 and link-local (169.254.x.x)
+        if (hostname === '169.254.169.254' || hostname.startsWith('169.254.')) {
+            return false;
+        }
+
+        // Block IPv6 loopback / private
+        if (hostname === '::1' || hostname === '[::1]' || hostname.startsWith('fe80:') || hostname.startsWith('fc00:') || hostname.startsWith('fd00:')) {
+            return false;
+        }
+
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 /**
  * Dispatch webhook payload to Laravel backend.
  */
@@ -270,8 +322,21 @@ async function startSession(sessionId, meta = {}) {
             console.log(`[Session ${sessionId}] Connection closed (status: ${statusCode}). Reconnect: ${shouldReconnect}`);
             sessionEntry.status = 'disconnected';
             sessionEntry.readyForPairing = false;
+
+            if (sock) {
+                try {
+                    if (sock.ev && typeof sock.ev.removeAllListeners === 'function') {
+                        sock.ev.removeAllListeners();
+                    }
+                } catch (e) {}
+                try {
+                    if (typeof sock.end === 'function') {
+                        sock.end();
+                    }
+                } catch (e) {}
+            }
+
             delete activeSessions[sessionId];
-    delete reconnectAttempts[sessionId];
 
             if (!shouldReconnect) {
                 delete reconnectAttempts[sessionId];
@@ -613,9 +678,26 @@ app.post(['/api/sessions/:sessionId/send-pdf', '/api/sessions/:sessionId/documen
         let buffer;
         if (pdf_base64) {
             buffer = Buffer.from(pdf_base64, 'base64');
-        } else if (pdf_path && fs.existsSync(pdf_path)) {
-            buffer = fs.readFileSync(pdf_path);
+        } else if (pdf_path) {
+            if (typeof pdf_path !== 'string' || pdf_path.includes('..')) {
+                return res.status(400).json({ error: 'Invalid pdf_path: Path traversal is not permitted.' });
+            }
+
+            const resolvedPath = path.resolve(pdf_path);
+            if (!resolvedPath.startsWith(SAFE_PDF_DIR + path.sep) && resolvedPath !== SAFE_PDF_DIR) {
+                return res.status(400).json({ error: 'Invalid pdf_path: Path must reside within designated safe directory.' });
+            }
+
+            if (!fs.existsSync(resolvedPath)) {
+                return res.status(404).json({ error: 'PDF file not found at designated safe path.' });
+            }
+
+            buffer = fs.readFileSync(resolvedPath);
         } else if (pdf_url) {
+            if (!isSafePdfUrl(pdf_url)) {
+                return res.status(400).json({ error: 'Invalid or blocked pdf_url: Must use https and cannot point to internal/private addresses.' });
+            }
+
             const resp = await axios.get(pdf_url, { responseType: 'arraybuffer', timeout: 15000 });
             buffer = Buffer.from(resp.data);
         }
@@ -753,10 +835,17 @@ const handleLogout = async (req, res) => {
             await session.sock.logout();
         } catch (err) {
             console.warn(`[Session ${sessionId}] Baileys logout error: ${err.message}`);
-            try {
-                session.sock.end();
-            } catch (e) {}
         }
+        try {
+            if (session.sock.ev && typeof session.sock.ev.removeAllListeners === 'function') {
+                session.sock.ev.removeAllListeners();
+            }
+        } catch (e) {}
+        try {
+            if (typeof session.sock.end === 'function') {
+                session.sock.end();
+            }
+        } catch (e) {}
     }
 
     delete activeSessions[sessionId];

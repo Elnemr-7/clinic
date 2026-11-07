@@ -145,7 +145,7 @@ class DoctorWorkspaceController extends Controller
         if ($request->boolean('send_whatsapp')) {
             $appointment->update(['whatsapp_opted_in' => true]);
             try {
-                dispatch_sync(new SendWhatsAppPrescriptionJob($consultation, $pdfPath));
+                SendWhatsAppPrescriptionJob::dispatch($consultation, $pdfPath);
             } catch (\Throwable $e) {
                 \Log::warning("Failed to dispatch WhatsApp prescription: " . $e->getMessage());
             }
